@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Lona Tensionada Iluminada</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .result-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .result-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1d4ed8; /* blue-700 */
+        }
+        .result-card .detail {
+            font-size: 0.8rem;
+            color: #6b7280; /* gray-500 */
+        }
+        #pdfUploadLabel {
+            cursor: pointer;
+        }
+        /* Spinner for loading indicator */
+        .loader {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: none; /* Hidden by default */
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl bg-white rounded-2xl shadow-lg p-6 md:p-8">
+
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Calculadora de Lona Tensionada</h1>
+            <p class="text-gray-500 mt-2">Selecione a forma, insira as dimensões ou carregue um PDF com a planta.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- Input Section -->
+            <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-6 border-b pb-3">Dimensões e Forma</h2>
+
+                <!-- Shape Selector -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-600 mb-2">Tipo de Forma</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center">
+                            <input type="radio" name="shape" value="rectangle" class="form-radio h-4 w-4 text-blue-600" checked>
+                            <span class="ml-2 text-gray-700">Retângulo</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="shape" value="circle" class="form-radio h-4 w-4 text-blue-600">
+                            <span class="ml-2 text-gray-700">Círculo</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Inputs for dimensions -->
+                <div id="dimensionsInputs" class="space-y-4">
+                    <!-- Rectangle Inputs -->
+                    <div id="rectangleInputs">
+                        <div>
+                            <label for="comprimento" class="block text-sm font-medium text-gray-600 mb-1">Comprimento (metros)</label>
+                            <input type="number" id="comprimento" value="1.21" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="altura" class="block text-sm font-medium text-gray-600 mb-1">Altura (metros)</label>
+                            <input type="number" id="altura" value="2.45" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">*Altura máxima recomendada: 2,8m</p>
+                        </div>
+                    </div>
+                    <!-- Circle Input (hidden by default) -->
+                    <div id="circleInputs" class="hidden">
+                        <div>
+                            <label for="diametro" class="block text-sm font-medium text-gray-600 mb-1">Diâmetro (metros)</label>
+                            <input type="number" id="diametro" value="2.0" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                 <!-- PDF Upload -->
+                <div class="mt-6">
+                    <label id="pdfUploadLabel" for="pdfFile" class="w-full inline-block text-center bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
+                        Carregar PDF com Medidas
+                    </label>
+                    <input type="file" id="pdfFile" class="hidden" accept=".pdf">
+                    <div class="text-center mt-2">
+                         <div id="loader" class="loader"></div>
+                         <p id="pdfStatus" class="text-xs text-gray-500"></p>
+                    </div>
+                </div>
+
+
+                <!-- Advanced Settings -->
+                <div class="mt-8">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Configurações Avançadas</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="potenciaFita" class="block text-sm font-medium text-gray-600 mb-1">Potência da Fita (W/m)</label>
+                            <input type="number" id="potenciaFita" value="6" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="espacamentoFita" class="block text-sm font-medium text-gray-600 mb-1">Espaçamento entre Fitas (m)</label>
+                            <input type="number" id="espacamentoFita" value="0.07" step="0.01" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-6 border-b pb-3">Quantitativos de Materiais</h2>
+                <div id="results" class="grid grid-cols-2 sm:grid-cols-2 gap-4">
+                    <!-- Results will be injected here -->
+                </div>
+                 <div class="mt-6 p-4 bg-green-100 border border-green-300 rounded-lg text-center">
+                    <h3 class="font-bold text-green-800">Fonte de Alimentação</h3>
+                    <div id="fonteResult" class="result-card text-center">
+                         <!-- Fonte result will be injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="text-center mt-8 pt-6 border-t border-gray-200">
+            <p class="text-sm text-gray-600 font-semibold">REPRESENTANTE COMERCIAL</p>
+            <p class="text-sm text-gray-500">Marcio Marques - (81) 9.9464-5392</p>
+        </div>
+    </div>
+
+    <script>
+        // --- Setup PDF.js worker ---
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js`;
+
+        // --- DOM Element References ---
+        const comprimentoInput = document.getElementById('comprimento');
+        const alturaInput = document.getElementById('altura');
+        const diametroInput = document.getElementById('diametro');
+        const potenciaFitaInput = document.getElementById('potenciaFita');
+        const espacamentoFitaInput = document.getElementById('espacamentoFita');
+        const resultsDiv = document.getElementById('results');
+        const fonteResultDiv = document.getElementById('fonteResult');
+        const shapeRadios = document.querySelectorAll('input[name="shape"]');
+        const rectangleInputsDiv = document.getElementById('rectangleInputs');
+        const circleInputsDiv = document.getElementById('circleInputs');
+        const pdfFileInput = document.getElementById('pdfFile');
+        const pdfStatus = document.getElementById('pdfStatus');
+        const loader = document.getElementById('loader');
+
+        // --- UI Update Functions ---
+        function showLoader(isLoading) {
+            loader.style.display = isLoading ? 'block' : 'none';
+        }
+
+        function updateStatus(message) {
+            pdfStatus.textContent = message;
+        }
+
+        /**
+         * Toggles input visibility based on selected shape.
+         */
+        function handleShapeChange() {
+            const selectedShape = document.querySelector('input[name="shape"]:checked').value;
+            if (selectedShape === 'rectangle') {
+                rectangleInputsDiv.classList.remove('hidden');
+                circleInputsDiv.classList.add('hidden');
+            } else {
+                rectangleInputsDiv.classList.add('hidden');
+                circleInputsDiv.classList.remove('hidden');
+            }
+            calculateMaterials();
+        }
+
+        /**
+         * Calculates all material quantities based on user inputs.
+         */
+        function calculateMaterials() {
+            const selectedShape = document.querySelector('input[name="shape"]:checked').value;
+            const potenciaFita = parseFloat(potenciaFitaInput.value) || 0;
+            const espacamentoFita = parseFloat(espacamentoFitaInput.value) || 0.07;
+
+            let perimetro = 0;
+            let area = 0;
+            let lonaLinearDimension = 0;
+
+            if (selectedShape === 'rectangle') {
+                const comprimento = parseFloat(comprimentoInput.value) || 0;
+                const altura = parseFloat(alturaInput.value) || 0;
+                perimetro = (comprimento + altura) * 2;
+                area = comprimento * altura;
+                lonaLinearDimension = comprimento;
+            } else { // Circle
+                const diametro = parseFloat(diametroInput.value) || 0;
+                perimetro = Math.PI * diametro;
+                area = Math.PI * Math.pow(diametro / 2, 2);
+                lonaLinearDimension = diametro;
+            }
+
+            const siliconePerimetro = perimetro;
+            const perfilH = perimetro / 2.5;
+            const metragemFita = espacamentoFita > 0 ? area / espacamentoFita : 0;
+            const fitaLedRolos = metragemFita / 3;
+            const fontePotencia = metragemFita * potenciaFita;
+
+            const resultsData = [
+                { title: 'Lona', unit: 'metros linear', value: lonaLinearDimension },
+                { title: 'Silicone', unit: 'metros', value: siliconePerimetro },
+                { title: 'Perfil "H"', unit: 'barras de 2.5m', value: perfilH },
+                { title: 'Fita de LED', unit: 'rolos de 3m', value: fitaLedRolos },
+            ];
+            
+            resultsDiv.innerHTML = '';
+            resultsData.forEach(item => {
+                const roundedValue = Math.ceil(item.value);
+                const resultCard = `
+                    <div class="result-card bg-white p-4 rounded-lg shadow-sm text-center border">
+                        <h3>${item.title}</h3>
+                        <p class="value">${roundedValue}</p>
+                        <p class="detail">${item.unit}</p>
+                        <p class="detail">(${item.value.toFixed(2)} exato)</p>
+                    </div>`;
+                resultsDiv.innerHTML += resultCard;
+            });
+
+            const roundedFonte = Math.ceil(fontePotencia);
+            fonteResultDiv.innerHTML = `
+                <p class="value">${roundedFonte} W</p>
+                <p class="detail">Potência Mínima Recomendada</p>
+                <p class="detail">(${fontePotencia.toFixed(2)} W exato)</p>`;
+        }
+        
+        /**
+         * Main handler for PDF file upload. Tries text extraction first,
+         * then falls back to AI image analysis.
+         */
+        async function handlePdfUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showLoader(true);
+            updateStatus('Lendo PDF...');
+            
+            try {
+                const fileBuffer = await file.arrayBuffer();
+                const typedarray = new Uint8Array(fileBuffer);
+
+                // --- Step 1: Try Text Extraction ---
+                updateStatus('Tentando extração de texto...');
+                const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    fullText += textContent.items.map(item => item.str).join(' ');
+                }
+
+                const foundText = parseTextAndFillInputs(fullText);
+
+                // --- Step 2: If text fails, use AI Vision ---
+                if (!foundText) {
+                    updateStatus('Texto não encontrado. Analisando desenho com IA...');
+                    await analyzePdfImageWithAI(pdf);
+                }
+            } catch (error) {
+                console.error('Error processing PDF:', error);
+                updateStatus('Erro ao processar o PDF.');
+            } finally {
+                showLoader(false);
+            }
+        }
+
+        /**
+         * Renders the first page of a PDF to a canvas, converts it to a Base64
+         * image, and sends it to the Gemini API for analysis.
+         */
+        async function analyzePdfImageWithAI(pdf) {
+            try {
+                const page = await pdf.getPage(1);
+                const viewport = page.getViewport({ scale: 2.0 }); // Higher scale for better resolution
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                
+                const base64ImageData = canvas.toDataURL('image/png').split(',')[1];
+
+                // --- Call Gemini API ---
+                const apiKey = ""; // API key is handled by the environment
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                
+                const prompt = "Analise a imagem desta planta baixa ou desenho técnico. Extraia as dimensões principais (comprimento, altura/largura, diâmetro). Responda apenas com um objeto JSON. As chaves devem ser 'comprimento', 'altura', ou 'diametro'. O valor deve ser um número. Se uma medida não for encontrada, omita a chave. Exemplo: {\"comprimento\": 5.4, \"altura\": 3.2}";
+
+                const payload = {
+                    contents: [{
+                        parts: [
+                            { text: prompt },
+                            { inline_data: { mime_type: "image/png", data: base64ImageData } }
+                        ]
+                    }]
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const textResponse = result.candidates[0].content.parts[0].text;
+                
+                // Clean the response to get valid JSON
+                const jsonString = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+                const dimensions = JSON.parse(jsonString);
+
+                if (Object.keys(dimensions).length > 0) {
+                    fillInputsFromAI(dimensions);
+                    updateStatus('Análise de imagem concluída!');
+                } else {
+                    updateStatus('IA não encontrou medidas. Preencha manualmente.');
+                }
+
+            } catch (error) {
+                console.error('AI Analysis Error:', error);
+                updateStatus('Falha na análise com IA.');
+            }
+        }
+
+        /**
+         * Fills input fields based on the JSON object from the AI.
+         */
+        function fillInputsFromAI(dimensions) {
+            if (dimensions.diametro) {
+                document.querySelector('input[name="shape"][value="circle"]').checked = true;
+                diametroInput.value = dimensions.diametro;
+            } else {
+                document.querySelector('input[name="shape"][value="rectangle"]').checked = true;
+                if (dimensions.comprimento) comprimentoInput.value = dimensions.comprimento;
+                if (dimensions.altura) alturaInput.value = dimensions.altura;
+                if (dimensions.largura && !dimensions.altura) alturaInput.value = dimensions.largura; // Alias
+            }
+            handleShapeChange();
+        }
+
+
+        /**
+         * Parses text to find measurements and updates input fields.
+         * @returns {boolean} - True if any measurement was found.
+         */
+        function parseTextAndFillInputs(text) {
+            text = text.toLowerCase();
+            let found = false;
+
+            const findValue = (keyword) => {
+                const regex = new RegExp(`${keyword}[\\s:;=]*(\\d+[.,]?\\d*)`, 'i');
+                const match = text.match(regex);
+                return match ? parseFloat(match[1].replace(',', '.')) : null;
+            };
+
+            const diametro = findValue('di[âa]metro');
+            if (diametro) {
+                document.querySelector('input[name="shape"][value="circle"]').checked = true;
+                diametroInput.value = diametro;
+                found = true;
+            } else {
+                const comprimento = findValue('comprimento|largura');
+                const altura = findValue('altura');
+                
+                if (comprimento || altura) {
+                    document.querySelector('input[name="shape"][value="rectangle"]').checked = true;
+                    if(comprimento) comprimentoInput.value = comprimento;
+                    if(altura) alturaInput.value = altura;
+                    found = true;
+                }
+            }
+            
+            if (found) {
+                updateStatus('Medidas extraídas do texto do PDF!');
+                handleShapeChange();
+            }
+
+            return found;
+        }
+
+        // --- Event Listeners ---
+        const allInputs = [comprimentoInput, alturaInput, diametroInput, potenciaFitaInput, espacamentoFitaInput];
+        allInputs.forEach(input => input.addEventListener('input', calculateMaterials));
+        shapeRadios.forEach(radio => radio.addEventListener('change', handleShapeChange));
+        pdfFileInput.addEventListener('change', handlePdfUpload);
+
+        // --- Initial Setup ---
+        window.addEventListener('load', () => {
+            handleShapeChange();
+        });
+
+    </script>
+
+</body>
+</html>
