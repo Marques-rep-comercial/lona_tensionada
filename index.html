@@ -76,6 +76,16 @@
                         </label>
                     </div>
                 </div>
+
+                <!-- Profile Selector -->
+                <div class="mb-4">
+                    <label for="profileType" class="block text-sm font-medium text-gray-600 mb-1">Tipo de Perfil</label>
+                    <select id="profileType" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="2.5" data-name='Perfil "H"'>Perfil "H" (barras de 2.5m)</option>
+                        <option value="2" data-name='Perfil "H" Flexível'>Perfil "H" Flexível (barras de 2m)</option>
+                        <option value="3" data-name='Perfil "E" Sobrepor'>Perfil "E" Sobrepor (barras de 3m)</option>
+                    </select>
+                </div>
                 
                 <!-- Inputs for dimensions -->
                 <div id="dimensionsInputs" class="space-y-4">
@@ -164,6 +174,7 @@
         const resultsDiv = document.getElementById('results');
         const fonteResultDiv = document.getElementById('fonteResult');
         const shapeRadios = document.querySelectorAll('input[name="shape"]');
+        const profileTypeSelect = document.getElementById('profileType');
         const rectangleInputsDiv = document.getElementById('rectangleInputs');
         const circleInputsDiv = document.getElementById('circleInputs');
         const pdfFileInput = document.getElementById('pdfFile');
@@ -201,6 +212,11 @@
             const selectedShape = document.querySelector('input[name="shape"]:checked').value;
             const potenciaFita = parseFloat(potenciaFitaInput.value) || 0;
             const espacamentoFita = parseFloat(espacamentoFitaInput.value) || 0.07;
+            
+            const selectedProfileOption = profileTypeSelect.options[profileTypeSelect.selectedIndex];
+            const profileBarLength = parseFloat(selectedProfileOption.value) || 2.5;
+            const profileName = selectedProfileOption.getAttribute('data-name');
+            const profileUnit = `barras de ${profileBarLength.toString().replace('.',',')}m`;
 
             let perimetro = 0;
             let area = 0;
@@ -220,7 +236,7 @@
             }
 
             const siliconePerimetro = perimetro;
-            const perfilH = perimetro / 2.5;
+            const perfilQuantidade = perimetro / profileBarLength;
             const metragemFita = espacamentoFita > 0 ? area / espacamentoFita : 0;
             const fitaLedRolos = metragemFita / 3;
             const fontePotencia = metragemFita * potenciaFita;
@@ -228,7 +244,7 @@
             const resultsData = [
                 { title: 'Lona', unit: 'metros linear', value: lonaLinearDimension },
                 { title: 'Silicone', unit: 'metros', value: siliconePerimetro },
-                { title: 'Perfil "H"', unit: 'barras de 2.5m', value: perfilH },
+                { title: profileName, unit: profileUnit, value: perfilQuantidade },
                 { title: 'Fita de LED', unit: 'rolos de 3m', value: fitaLedRolos },
             ];
             
@@ -411,7 +427,7 @@
         }
 
         // --- Event Listeners ---
-        const allInputs = [comprimentoInput, alturaInput, diametroInput, potenciaFitaInput, espacamentoFitaInput];
+        const allInputs = [comprimentoInput, alturaInput, diametroInput, potenciaFitaInput, espacamentoFitaInput, profileTypeSelect];
         allInputs.forEach(input => input.addEventListener('input', calculateMaterials));
         shapeRadios.forEach(radio => radio.addEventListener('change', handleShapeChange));
         pdfFileInput.addEventListener('change', handlePdfUpload);
