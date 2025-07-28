@@ -70,7 +70,7 @@
                     <div class="flex flex-wrap gap-4">
                         <label class="flex items-center">
                             <input type="radio" name="shape" value="rectangle" class="form-radio h-4 w-4 text-blue-600" checked>
-                            <span class="ml-2 text-gray-700">Retângulo</span>
+                            <span class="ml-2 text-gray-700">Retângulo ou Quadrado</span>
                         </label>
                         <label class="flex items-center">
                             <input type="radio" name="shape" value="circle" class="form-radio h-4 w-4 text-blue-600">
@@ -79,6 +79,10 @@
                         <label class="flex items-center">
                             <input type="radio" name="shape" value="ellipse" class="form-radio h-4 w-4 text-blue-600">
                             <span class="ml-2 text-gray-700">Elipse (Oval)</span>
+                        </label>
+                         <label class="flex items-center">
+                            <input type="radio" name="shape" value="custom" class="form-radio h-4 w-4 text-blue-600">
+                            <span class="ml-2 text-gray-700">Polígono Irregular</span>
                         </label>
                     </div>
                 </div>
@@ -122,6 +126,17 @@
                         <div>
                             <label for="eixoMenor" class="block text-sm font-medium text-gray-600 mb-1">Eixo Menor (metros)</label>
                             <input type="number" id="eixoMenor" value="2.0" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    <!-- Custom Shape Inputs (hidden by default) -->
+                    <div id="customInputs" class="hidden space-y-4">
+                        <div id="customSidesContainer" class="space-y-2">
+                             <!-- Dynamic side inputs will be added here -->
+                        </div>
+                        <button id="addSideBtn" type="button" class="w-full text-sm bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-md hover:bg-gray-300 transition-colors">Adicionar Medida</button>
+                        <div>
+                            <label for="customArea" class="block text-sm font-medium text-gray-600 mb-1">Área (m²)</label>
+                            <input type="number" id="customArea" value="5.0" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Necessário para cálculo de LED">
                         </div>
                     </div>
                 </div>
@@ -193,6 +208,9 @@
         const diametroInput = document.getElementById('diametro');
         const eixoMaiorInput = document.getElementById('eixoMaior');
         const eixoMenorInput = document.getElementById('eixoMenor');
+        const customAreaInput = document.getElementById('customArea');
+        const customSidesContainer = document.getElementById('customSidesContainer');
+        const addSideBtn = document.getElementById('addSideBtn');
         const potenciaFitaInput = document.getElementById('potenciaFita');
         const espacamentoFitaInput = document.getElementById('espacamentoFita');
         const resultsDiv = document.getElementById('results');
@@ -202,6 +220,7 @@
         const rectangleInputsDiv = document.getElementById('rectangleInputs');
         const circleInputsDiv = document.getElementById('circleInputs');
         const ellipseInputsDiv = document.getElementById('ellipseInputs');
+        const customInputsDiv = document.getElementById('customInputs');
         const pdfFileInput = document.getElementById('pdfFile');
         const pdfStatus = document.getElementById('pdfStatus');
         const loader = document.getElementById('loader');
@@ -226,6 +245,7 @@
             rectangleInputsDiv.classList.add('hidden');
             circleInputsDiv.classList.add('hidden');
             ellipseInputsDiv.classList.add('hidden');
+            customInputsDiv.classList.add('hidden');
 
             if (selectedShape === 'rectangle') {
                 rectangleInputsDiv.classList.remove('hidden');
@@ -233,8 +253,53 @@
                 circleInputsDiv.classList.remove('hidden');
             } else if (selectedShape === 'ellipse') {
                 ellipseInputsDiv.classList.remove('hidden');
+            } else if (selectedShape === 'custom') {
+                customInputsDiv.classList.remove('hidden');
+                if (customSidesContainer.children.length === 0) {
+                    addSideInput();
+                    addSideInput();
+                    addSideInput();
+                }
             }
             calculateMaterials();
+        }
+
+        /**
+         * Re-labels the side inputs sequentially after a removal.
+         */
+        function relabelCustomSides() {
+            const sideDivs = customSidesContainer.children;
+            for (let i = 0; i < sideDivs.length; i++) {
+                const label = sideDivs[i].querySelector('label');
+                if (label) {
+                    label.textContent = `Lado ${i + 1} (metros)`;
+                }
+            }
+        }
+
+        /**
+         * Adds a new input field for a side of the custom shape.
+         */
+        function addSideInput() {
+            const sideCount = customSidesContainer.children.length + 1;
+            const newSideDiv = document.createElement('div');
+            newSideDiv.className = 'flex items-center gap-2';
+            newSideDiv.innerHTML = `
+                <label for="side${sideCount}" class="block text-sm font-medium text-gray-700 mb-1 flex-grow">Lado ${sideCount} (metros)</label>
+                <input type="number" class="w-full p-2 bg-white border border-gray-300 rounded-md shadow-sm custom-side-input" value="1.0">
+                <button type="button" class="remove-side-btn bg-red-500 text-white font-bold w-8 h-8 rounded-md hover:bg-red-600 transition-colors flex items-center justify-center">-</button>
+            `;
+            customSidesContainer.appendChild(newSideDiv);
+            
+            // Add event listener for the input
+            newSideDiv.querySelector('input').addEventListener('input', calculateMaterials);
+            
+            // Add event listener for the remove button
+            newSideDiv.querySelector('.remove-side-btn').addEventListener('click', () => {
+                newSideDiv.remove();
+                relabelCustomSides();
+                calculateMaterials();
+            });
         }
 
         /**
@@ -280,16 +345,23 @@
                 const eixoMenor = parseFloat(eixoMenorInput.value) || 0;
                 rawDimensions.eixoMaior = eixoMaior;
                 rawDimensions.eixoMenor = eixoMenor;
-                
-                const a = eixoMaior / 2; // semi-major axis
-                const b = eixoMenor / 2; // semi-minor axis
-                
-                // Ramanujan's approximation for perimeter
+                const a = eixoMaior / 2;
+                const b = eixoMenor / 2;
                 perimetro = Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
                 area = Math.PI * a * b;
                 lonaLinearDimension = eixoMaior;
                 dimensionsText = `Eixo Maior: ${eixoMaior}m, Eixo Menor: ${eixoMenor}m`;
                 shapeLabel = 'Elipse';
+            } else if (selectedShape === 'custom') {
+                const sideInputs = document.querySelectorAll('.custom-side-input');
+                const sides = Array.from(sideInputs).map(input => parseFloat(input.value) || 0);
+                rawDimensions.sides = sides;
+                rawDimensions.area = parseFloat(customAreaInput.value) || 0;
+                perimetro = sides.reduce((sum, side) => sum + side, 0);
+                area = rawDimensions.area;
+                lonaLinearDimension = Math.max(...sides, 0);
+                dimensionsText = `Lados: ${sides.join('m, ')}m. Área: ${area}m²`;
+                shapeLabel = 'Polígono Irregular';
             }
 
             const siliconePerimetro = perimetro;
@@ -311,10 +383,7 @@
                 rawDimensions: rawDimensions,
                 profile: `${profileName} (${profileUnit})`,
                 materials: resultsData,
-                power: {
-                    value: fontePotencia,
-                    rounded: Math.ceil(fontePotencia)
-                }
+                power: { value: fontePotencia, rounded: Math.ceil(fontePotencia) }
             };
 
             resultsDiv.innerHTML = '';
@@ -361,72 +430,73 @@
             });
             let lastY = doc.autoTable.previous.finalY;
 
-            doc.setFontSize(12);
-            doc.setTextColor(0);
-            doc.text(`Desenho Representativo - ${data.shape}`, 14, lastY + 15);
+            if (data.shape !== 'Polígono Irregular') {
+                doc.setFontSize(12);
+                doc.setTextColor(0);
+                doc.text(`Desenho Representativo - ${data.shape}`, 14, lastY + 15);
+                const drawStartY = lastY + 20;
+                const drawAreaWidth = doc.internal.pageSize.width - 28;
+                const drawCenterX = 14 + drawAreaWidth / 2;
+                const drawMaxHeight = 50;
+                let scale, w, h, x, y;
 
-            const drawStartY = lastY + 20;
-            const drawAreaWidth = doc.internal.pageSize.width - 28;
-            const drawCenterX = 14 + drawAreaWidth / 2;
-            const drawMaxHeight = 50;
-            let scale, w, h, x, y;
+                doc.setLineWidth(0.2);
+                doc.setDrawColor(50);
+                doc.setFontSize(8);
+                doc.setTextColor(80);
 
-            doc.setLineWidth(0.2);
-            doc.setDrawColor(50);
-            doc.setFontSize(8);
-            doc.setTextColor(80);
-
-            if (data.shape === 'Retângulo' || data.shape === 'Quadrado') {
-                const rawW = data.rawDimensions.comprimento;
-                const rawH = data.rawDimensions.altura;
-                if (rawW > 0 && rawH > 0) {
-                    scale = Math.min((drawAreaWidth / rawW) * 0.8, (drawMaxHeight / rawH) * 0.8);
-                    w = rawW * scale;
-                    h = rawH * scale;
-                    x = drawCenterX - w / 2;
-                    y = drawStartY;
-                    doc.rect(x, y, w, h);
-                    doc.line(x, y + h + 5, x + w, y + h + 5);
-                    doc.line(x, y + h + 3, x, y + h + 7);
-                    doc.line(x + w, y + h + 3, x + w, y + h + 7);
-                    doc.text(`${rawW}m`, x + w / 2, y + h + 9, { align: 'center' });
-                    doc.line(x - 5, y, x - 5, y + h);
-                    doc.line(x - 7, y, x - 3, y);
-                    doc.line(x - 7, y + h, x - 3, y + h);
-                    doc.text(`${rawH}m`, x - 7, y + h / 2, { align: 'right', baseline: 'middle' });
+                if (data.shape === 'Retângulo' || data.shape === 'Quadrado') {
+                    const rawW = data.rawDimensions.comprimento;
+                    const rawH = data.rawDimensions.altura;
+                    if (rawW > 0 && rawH > 0) {
+                        scale = Math.min((drawAreaWidth / rawW) * 0.8, (drawMaxHeight / rawH) * 0.8);
+                        w = rawW * scale;
+                        h = rawH * scale;
+                        x = drawCenterX - w / 2;
+                        y = drawStartY;
+                        doc.rect(x, y, w, h);
+                        doc.line(x, y + h + 5, x + w, y + h + 5);
+                        doc.line(x, y + h + 3, x, y + h + 7);
+                        doc.line(x + w, y + h + 3, x + w, y + h + 7);
+                        doc.text(`${rawW}m`, x + w / 2, y + h + 9, { align: 'center' });
+                        doc.line(x - 5, y, x - 5, y + h);
+                        doc.line(x - 7, y, x - 3, y);
+                        doc.line(x - 7, y + h, x - 3, y + h);
+                        doc.text(`${rawH}m`, x - 7, y + h / 2, { align: 'right', baseline: 'middle' });
+                    }
+                } else if (data.shape === 'Círculo') {
+                    const rawD = data.rawDimensions.diametro;
+                    if (rawD > 0) {
+                        const r = (rawD / 2) * (Math.min(drawAreaWidth, drawMaxHeight) / rawD * 0.8);
+                        x = drawCenterX;
+                        y = drawStartY + r;
+                        doc.circle(x, y, r);
+                        doc.line(x - r, y, x + r, y);
+                        doc.line(x - r, y - 2, x - r, y + 2);
+                        doc.line(x + r, y - 2, x + r, y + 2);
+                        doc.text(`${rawD}m`, x, y + 6, { align: 'center' });
+                    }
+                } else if (data.shape === 'Elipse') {
+                    const rawW = data.rawDimensions.eixoMaior;
+                    const rawH = data.rawDimensions.eixoMenor;
+                    if (rawW > 0 && rawH > 0) {
+                        scale = Math.min((drawAreaWidth / rawW) * 0.8, (drawMaxHeight / rawH) * 0.8);
+                        const rx = (rawW / 2) * scale;
+                        const ry = (rawH / 2) * scale;
+                        x = drawCenterX;
+                        y = drawStartY + ry;
+                        doc.ellipse(x, y, rx, ry);
+                        doc.line(x - rx, y, x + rx, y);
+                        doc.text(`${rawW}m`, x, y + 4, { align: 'center' });
+                        doc.line(x, y - ry, x, y + ry);
+                        doc.text(`${rawH}m`, x + 4, y, { align: 'left', baseline: 'middle' });
+                    }
                 }
-            } else if (data.shape === 'Círculo') {
-                const rawD = data.rawDimensions.diametro;
-                if (rawD > 0) {
-                    const r = (rawD / 2) * (Math.min(drawAreaWidth, drawMaxHeight) / rawD * 0.8);
-                    x = drawCenterX;
-                    y = drawStartY + r;
-                    doc.circle(x, y, r);
-                    doc.line(x - r, y, x + r, y);
-                    doc.line(x - r, y - 2, x - r, y + 2);
-                    doc.line(x + r, y - 2, x + r, y + 2);
-                    doc.text(`${rawD}m`, x, y + 6, { align: 'center' });
-                }
-            } else if (data.shape === 'Elipse') {
-                const rawW = data.rawDimensions.eixoMaior;
-                const rawH = data.rawDimensions.eixoMenor;
-                if (rawW > 0 && rawH > 0) {
-                    scale = Math.min((drawAreaWidth / rawW) * 0.8, (drawMaxHeight / rawH) * 0.8);
-                    const rx = (rawW / 2) * scale;
-                    const ry = (rawH / 2) * scale;
-                    x = drawCenterX;
-                    y = drawStartY + ry;
-                    doc.ellipse(x, y, rx, ry);
-                    doc.line(x - rx, y, x + rx, y);
-                    doc.text(`${rawW}m`, x, y + 4, { align: 'center' });
-                    doc.line(x, y - ry, x, y + ry);
-                    doc.text(`${rawH}m`, x + 4, y, { align: 'left', baseline: 'middle' });
-                }
+                lastY = drawStartY + drawMaxHeight + 10;
+            } else {
+                lastY += 5;
             }
-
-            const drawingFinalY = drawStartY + drawMaxHeight + 10;
-            lastY = drawingFinalY;
-
+            
             const tableBody = data.materials.map(item => [
                 item.title,
                 Math.ceil(item.value),
@@ -581,11 +651,12 @@
         }
 
         // --- Event Listeners ---
-        const allInputs = [comprimentoInput, alturaInput, diametroInput, eixoMaiorInput, eixoMenorInput, potenciaFitaInput, espacamentoFitaInput, profileTypeSelect];
+        const allInputs = [comprimentoInput, alturaInput, diametroInput, eixoMaiorInput, eixoMenorInput, customAreaInput, potenciaFitaInput, espacamentoFitaInput, profileTypeSelect];
         allInputs.forEach(input => input.addEventListener('input', calculateMaterials));
         shapeRadios.forEach(radio => radio.addEventListener('change', handleShapeChange));
         pdfFileInput.addEventListener('change', handlePdfUpload);
         downloadPdfBtn.addEventListener('click', downloadPDF);
+        addSideBtn.addEventListener('click', addSideInput);
 
         // --- Initial Setup ---
         window.addEventListener('load', () => {
