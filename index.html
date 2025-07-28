@@ -67,7 +67,7 @@
                 <!-- Shape Selector -->
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-600 mb-2">Tipo de Forma</label>
-                    <div class="flex gap-4">
+                    <div class="flex flex-wrap gap-4">
                         <label class="flex items-center">
                             <input type="radio" name="shape" value="rectangle" class="form-radio h-4 w-4 text-blue-600" checked>
                             <span class="ml-2 text-gray-700">Retângulo</span>
@@ -75,6 +75,10 @@
                         <label class="flex items-center">
                             <input type="radio" name="shape" value="circle" class="form-radio h-4 w-4 text-blue-600">
                             <span class="ml-2 text-gray-700">Círculo</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="shape" value="ellipse" class="form-radio h-4 w-4 text-blue-600">
+                            <span class="ml-2 text-gray-700">Elipse (Oval)</span>
                         </label>
                     </div>
                 </div>
@@ -95,12 +99,11 @@
                     <div id="rectangleInputs">
                         <div>
                             <label for="comprimento" class="block text-sm font-medium text-gray-600 mb-1">Comprimento (metros)</label>
-                            <input type="number" id="comprimento" value="1.21" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <input type="number" id="comprimento" value="2.5" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label for="altura" class="block text-sm font-medium text-gray-600 mb-1">Altura (metros)</label>
-                            <input type="number" id="altura" value="2.45" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                            <p class="text-xs text-gray-500 mt-1">*Altura máxima recomendada: 2,8m</p>
+                            <input type="number" id="altura" value="1.5" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                         </div>
                     </div>
                     <!-- Circle Input (hidden by default) -->
@@ -108,6 +111,17 @@
                         <div>
                             <label for="diametro" class="block text-sm font-medium text-gray-600 mb-1">Diâmetro (metros)</label>
                             <input type="number" id="diametro" value="2.0" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                     <!-- Ellipse Inputs (hidden by default) -->
+                    <div id="ellipseInputs" class="hidden">
+                        <div>
+                            <label for="eixoMaior" class="block text-sm font-medium text-gray-600 mb-1">Eixo Maior (metros)</label>
+                            <input type="number" id="eixoMaior" value="3.0" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="eixoMenor" class="block text-sm font-medium text-gray-600 mb-1">Eixo Menor (metros)</label>
+                            <input type="number" id="eixoMenor" value="2.0" class="w-full p-3 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                         </div>
                     </div>
                 </div>
@@ -177,6 +191,8 @@
         const comprimentoInput = document.getElementById('comprimento');
         const alturaInput = document.getElementById('altura');
         const diametroInput = document.getElementById('diametro');
+        const eixoMaiorInput = document.getElementById('eixoMaior');
+        const eixoMenorInput = document.getElementById('eixoMenor');
         const potenciaFitaInput = document.getElementById('potenciaFita');
         const espacamentoFitaInput = document.getElementById('espacamentoFita');
         const resultsDiv = document.getElementById('results');
@@ -185,6 +201,7 @@
         const profileTypeSelect = document.getElementById('profileType');
         const rectangleInputsDiv = document.getElementById('rectangleInputs');
         const circleInputsDiv = document.getElementById('circleInputs');
+        const ellipseInputsDiv = document.getElementById('ellipseInputs');
         const pdfFileInput = document.getElementById('pdfFile');
         const pdfStatus = document.getElementById('pdfStatus');
         const loader = document.getElementById('loader');
@@ -206,12 +223,16 @@
          */
         function handleShapeChange() {
             const selectedShape = document.querySelector('input[name="shape"]:checked').value;
+            rectangleInputsDiv.classList.add('hidden');
+            circleInputsDiv.classList.add('hidden');
+            ellipseInputsDiv.classList.add('hidden');
+
             if (selectedShape === 'rectangle') {
                 rectangleInputsDiv.classList.remove('hidden');
-                circleInputsDiv.classList.add('hidden');
-            } else {
-                rectangleInputsDiv.classList.add('hidden');
+            } else if (selectedShape === 'circle') {
                 circleInputsDiv.classList.remove('hidden');
+            } else if (selectedShape === 'ellipse') {
+                ellipseInputsDiv.classList.remove('hidden');
             }
             calculateMaterials();
         }
@@ -246,7 +267,7 @@
                 lonaLinearDimension = comprimento;
                 dimensionsText = `Comprimento: ${comprimento}m, Altura: ${altura}m`;
                 shapeLabel = comprimento === altura ? 'Quadrado' : 'Retângulo';
-            } else { // Circle
+            } else if (selectedShape === 'circle') {
                 const diametro = parseFloat(diametroInput.value) || 0;
                 rawDimensions.diametro = diametro;
                 perimetro = Math.PI * diametro;
@@ -254,6 +275,21 @@
                 lonaLinearDimension = diametro;
                 dimensionsText = `Diâmetro: ${diametro}m`;
                 shapeLabel = 'Círculo';
+            } else if (selectedShape === 'ellipse') {
+                const eixoMaior = parseFloat(eixoMaiorInput.value) || 0;
+                const eixoMenor = parseFloat(eixoMenorInput.value) || 0;
+                rawDimensions.eixoMaior = eixoMaior;
+                rawDimensions.eixoMenor = eixoMenor;
+                
+                const a = eixoMaior / 2; // semi-major axis
+                const b = eixoMenor / 2; // semi-minor axis
+                
+                // Ramanujan's approximation for perimeter
+                perimetro = Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+                area = Math.PI * a * b;
+                lonaLinearDimension = eixoMaior;
+                dimensionsText = `Eixo Maior: ${eixoMaior}m, Eixo Menor: ${eixoMenor}m`;
+                shapeLabel = 'Elipse';
             }
 
             const siliconePerimetro = perimetro;
@@ -269,7 +305,6 @@
                 { title: 'Fita de LED', unit: 'rolos de 3m', value: fitaLedRolos },
             ];
             
-            // Store results for PDF generation
             lastCalculatedResults = {
                 shape: shapeLabel,
                 dimensions: dimensionsText,
@@ -309,14 +344,12 @@
             const data = lastCalculatedResults;
             const today = new Date().toLocaleDateString('pt-BR');
 
-            // Header
             doc.setFontSize(18);
             doc.text("Orçamento de Materiais - Lona Tensionada", 14, 22);
             doc.setFontSize(11);
             doc.setTextColor(100);
             doc.text(`Data: ${today}`, 14, 29);
 
-            // Input Parameters
             doc.setFontSize(12);
             doc.setTextColor(0);
             doc.text("Parâmetros do Projeto", 14, 45);
@@ -328,7 +361,6 @@
             });
             let lastY = doc.autoTable.previous.finalY;
 
-            // --- Add Geometric Drawing ---
             doc.setFontSize(12);
             doc.setTextColor(0);
             doc.text(`Desenho Representativo - ${data.shape}`, 14, lastY + 15);
@@ -348,16 +380,11 @@
                 const rawW = data.rawDimensions.comprimento;
                 const rawH = data.rawDimensions.altura;
                 if (rawW > 0 && rawH > 0) {
-                    if (rawW / drawAreaWidth > rawH / drawMaxHeight) {
-                        scale = (drawAreaWidth / rawW) * 0.8;
-                    } else {
-                        scale = (drawMaxHeight / rawH) * 0.8;
-                    }
+                    scale = Math.min((drawAreaWidth / rawW) * 0.8, (drawMaxHeight / rawH) * 0.8);
                     w = rawW * scale;
                     h = rawH * scale;
                     x = drawCenterX - w / 2;
                     y = drawStartY;
-
                     doc.rect(x, y, w, h);
                     doc.line(x, y + h + 5, x + w, y + h + 5);
                     doc.line(x, y + h + 3, x, y + h + 7);
@@ -371,24 +398,35 @@
             } else if (data.shape === 'Círculo') {
                 const rawD = data.rawDimensions.diametro;
                 if (rawD > 0) {
-                    const rawR = rawD / 2;
-                    scale = Math.min(drawAreaWidth, drawMaxHeight) / rawD * 0.8;
-                    const r = rawR * scale;
+                    const r = (rawD / 2) * (Math.min(drawAreaWidth, drawMaxHeight) / rawD * 0.8);
                     x = drawCenterX;
                     y = drawStartY + r;
-
                     doc.circle(x, y, r);
                     doc.line(x - r, y, x + r, y);
                     doc.line(x - r, y - 2, x - r, y + 2);
                     doc.line(x + r, y - 2, x + r, y + 2);
                     doc.text(`${rawD}m`, x, y + 6, { align: 'center' });
                 }
+            } else if (data.shape === 'Elipse') {
+                const rawW = data.rawDimensions.eixoMaior;
+                const rawH = data.rawDimensions.eixoMenor;
+                if (rawW > 0 && rawH > 0) {
+                    scale = Math.min((drawAreaWidth / rawW) * 0.8, (drawMaxHeight / rawH) * 0.8);
+                    const rx = (rawW / 2) * scale;
+                    const ry = (rawH / 2) * scale;
+                    x = drawCenterX;
+                    y = drawStartY + ry;
+                    doc.ellipse(x, y, rx, ry);
+                    doc.line(x - rx, y, x + rx, y);
+                    doc.text(`${rawW}m`, x, y + 4, { align: 'center' });
+                    doc.line(x, y - ry, x, y + ry);
+                    doc.text(`${rawH}m`, x + 4, y, { align: 'left', baseline: 'middle' });
+                }
             }
 
             const drawingFinalY = drawStartY + drawMaxHeight + 10;
             lastY = drawingFinalY;
 
-            // Materials Table
             const tableBody = data.materials.map(item => [
                 item.title,
                 Math.ceil(item.value),
@@ -407,7 +445,6 @@
             });
             lastY = doc.autoTable.previous.finalY;
 
-            // Power Supply
             doc.text("Fonte de Alimentação Recomendada", 14, lastY + 10);
             doc.autoTable({
                 startY: lastY + 13,
@@ -416,7 +453,6 @@
                 ]
             });
 
-            // Footer
             const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
             doc.setFontSize(10);
             doc.setTextColor(100);
@@ -425,21 +461,15 @@
             doc.save(`orcamento-lona-${new Date().getTime()}.pdf`);
         }
         
-        /**
-         * Main handler for PDF file upload.
-         */
         async function handlePdfUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             showLoader(true);
             updateStatus('Lendo PDF...');
-            
             try {
                 const fileBuffer = await file.arrayBuffer();
                 const typedarray = new Uint8Array(fileBuffer);
                 const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
-                
                 updateStatus('Tentando extração de texto...');
                 let fullText = '';
                 for (let i = 1; i <= pdf.numPages; i++) {
@@ -447,9 +477,7 @@
                     const textContent = await page.getTextContent();
                     fullText += textContent.items.map(item => item.str).join(' ');
                 }
-
                 const foundText = parseTextAndFillInputs(fullText);
-
                 if (!foundText) {
                     updateStatus('Texto não encontrado. Analisando desenho com IA...');
                     await analyzePdfImageWithAI(pdf);
@@ -462,9 +490,6 @@
             }
         }
 
-        /**
-         * Renders PDF page and sends to Gemini API for analysis.
-         */
         async function analyzePdfImageWithAI(pdf) {
             try {
                 const page = await pdf.getPage(1);
@@ -473,54 +498,36 @@
                 const context = canvas.getContext('2d');
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
-
                 await page.render({ canvasContext: context, viewport: viewport }).promise;
                 const base64ImageData = canvas.toDataURL('image/png').split(',')[1];
-
-                const apiKey = ""; // Handled by environment
+                const apiKey = "";
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-                const prompt = "Analise a imagem desta planta baixa ou desenho técnico. Extraia as dimensões principais (comprimento, altura/largura, diâmetro). Responda apenas com um objeto JSON. As chaves devem ser 'comprimento', 'altura', ou 'diametro'. O valor deve ser um número. Se uma medida não for encontrada, omita a chave. Exemplo: {\"comprimento\": 5.4, \"altura\": 3.2}";
-
-                const payload = {
-                    contents: [{
-                        parts: [
-                            { text: prompt },
-                            { inline_data: { mime_type: "image/png", data: base64ImageData } }
-                        ]
-                    }]
-                };
-
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
+                const prompt = "Analise a imagem desta planta baixa ou desenho técnico. Extraia as dimensões principais (comprimento, altura/largura, diâmetro, eixo maior, eixo menor). Responda apenas com um objeto JSON. As chaves devem ser 'comprimento', 'altura', 'diametro', 'eixoMaior', ou 'eixoMenor'. O valor deve ser um número. Se uma medida não for encontrada, omita a chave. Exemplo: {\"eixoMaior\": 5.4, \"eixoMenor\": 3.2}";
+                const payload = { contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/png", data: base64ImageData } }] }] };
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-
                 const result = await response.json();
                 const textResponse = result.candidates[0].content.parts[0].text;
                 const jsonString = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
                 const dimensions = JSON.parse(jsonString);
-
                 if (Object.keys(dimensions).length > 0) {
                     fillInputsFromAI(dimensions);
                     updateStatus('Análise de imagem concluída!');
                 } else {
                     updateStatus('IA não encontrou medidas. Preencha manualmente.');
                 }
-
             } catch (error) {
                 console.error('AI Analysis Error:', error);
                 updateStatus('Falha na análise com IA.');
             }
         }
 
-        /**
-         * Fills input fields based on the JSON object from the AI.
-         */
         function fillInputsFromAI(dimensions) {
-            if (dimensions.diametro) {
+            if (dimensions.eixoMaior || dimensions.eixoMenor) {
+                document.querySelector('input[name="shape"][value="ellipse"]').checked = true;
+                if(dimensions.eixoMaior) eixoMaiorInput.value = dimensions.eixoMaior;
+                if(dimensions.eixoMenor) eixoMenorInput.value = dimensions.eixoMenor;
+            } else if (dimensions.diametro) {
                 document.querySelector('input[name="shape"][value="circle"]').checked = true;
                 diametroInput.value = dimensions.diametro;
             } else {
@@ -532,33 +539,37 @@
             handleShapeChange();
         }
 
-        /**
-         * Parses text to find measurements and updates input fields.
-         */
         function parseTextAndFillInputs(text) {
             text = text.toLowerCase();
             let found = false;
-
             const findValue = (keyword) => {
                 const regex = new RegExp(`${keyword}[\\s:;=]*(\\d+[.,]?\\d*)`, 'i');
                 const match = text.match(regex);
                 return match ? parseFloat(match[1].replace(',', '.')) : null;
             };
 
-            const diametro = findValue('di[âa]metro');
-            if (diametro) {
-                document.querySelector('input[name="shape"][value="circle"]').checked = true;
-                diametroInput.value = diametro;
+            const eixoMaior = findValue('eixo maior');
+            const eixoMenor = findValue('eixo menor');
+            if(eixoMaior || eixoMenor) {
+                document.querySelector('input[name="shape"][value="ellipse"]').checked = true;
+                if(eixoMaior) eixoMaiorInput.value = eixoMaior;
+                if(eixoMenor) eixoMenorInput.value = eixoMenor;
                 found = true;
             } else {
-                const comprimento = findValue('comprimento|largura');
-                const altura = findValue('altura');
-                
-                if (comprimento || altura) {
-                    document.querySelector('input[name="shape"][value="rectangle"]').checked = true;
-                    if(comprimento) comprimentoInput.value = comprimento;
-                    if(altura) alturaInput.value = altura;
+                const diametro = findValue('di[âa]metro');
+                if (diametro) {
+                    document.querySelector('input[name="shape"][value="circle"]').checked = true;
+                    diametroInput.value = diametro;
                     found = true;
+                } else {
+                    const comprimento = findValue('comprimento|largura');
+                    const altura = findValue('altura');
+                    if (comprimento || altura) {
+                        document.querySelector('input[name="shape"][value="rectangle"]').checked = true;
+                        if(comprimento) comprimentoInput.value = comprimento;
+                        if(altura) alturaInput.value = altura;
+                        found = true;
+                    }
                 }
             }
             
@@ -566,12 +577,11 @@
                 updateStatus('Medidas extraídas do texto do PDF!');
                 handleShapeChange();
             }
-
             return found;
         }
 
         // --- Event Listeners ---
-        const allInputs = [comprimentoInput, alturaInput, diametroInput, potenciaFitaInput, espacamentoFitaInput, profileTypeSelect];
+        const allInputs = [comprimentoInput, alturaInput, diametroInput, eixoMaiorInput, eixoMenorInput, potenciaFitaInput, espacamentoFitaInput, profileTypeSelect];
         allInputs.forEach(input => input.addEventListener('input', calculateMaterials));
         shapeRadios.forEach(radio => radio.addEventListener('change', handleShapeChange));
         pdfFileInput.addEventListener('change', handlePdfUpload);
