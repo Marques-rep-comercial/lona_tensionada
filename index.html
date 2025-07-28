@@ -6,6 +6,8 @@
     <title>Calculadora de Lona Tensionada Iluminada</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -26,7 +28,7 @@
             font-size: 0.8rem;
             color: #6b7280; /* gray-500 */
         }
-        #pdfUploadLabel {
+        #pdfUploadLabel, #downloadPdfBtn {
             cursor: pointer;
         }
         /* Spinner for loading indicator */
@@ -140,7 +142,7 @@
             </div>
 
             <!-- Output Section -->
-            <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
+            <div class="bg-blue-50 p-6 rounded-lg border border-blue-200 flex flex-col">
                 <h2 class="text-2xl font-semibold text-gray-700 mb-6 border-b pb-3">Quantitativos de Materiais</h2>
                 <div id="results" class="grid grid-cols-2 sm:grid-cols-2 gap-4">
                     <!-- Results will be injected here -->
@@ -150,6 +152,11 @@
                     <div id="fonteResult" class="result-card text-center">
                          <!-- Fonte result will be injected here -->
                     </div>
+                </div>
+                <div class="mt-auto pt-6">
+                     <button id="downloadPdfBtn" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-md hover:bg-green-700 transition-colors">
+                        Baixar Quantitativos (PDF)
+                    </button>
                 </div>
             </div>
         </div>
@@ -164,6 +171,7 @@
     <script>
         // --- Setup PDF.js worker ---
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js`;
+        const { jsPDF } = window.jspdf;
 
         // --- DOM Element References ---
         const comprimentoInput = document.getElementById('comprimento');
@@ -180,6 +188,9 @@
         const pdfFileInput = document.getElementById('pdfFile');
         const pdfStatus = document.getElementById('pdfStatus');
         const loader = document.getElementById('loader');
+        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+
+        let lastCalculatedResults = {};
 
         // --- UI Update Functions ---
         function showLoader(isLoading) {
@@ -221,18 +232,28 @@
             let perimetro = 0;
             let area = 0;
             let lonaLinearDimension = 0;
+            let dimensionsText = '';
+            let shapeLabel = '';
+            const rawDimensions = {};
 
             if (selectedShape === 'rectangle') {
                 const comprimento = parseFloat(comprimentoInput.value) || 0;
                 const altura = parseFloat(alturaInput.value) || 0;
+                rawDimensions.comprimento = comprimento;
+                rawDimensions.altura = altura;
                 perimetro = (comprimento + altura) * 2;
                 area = comprimento * altura;
                 lonaLinearDimension = comprimento;
+                dimensionsText = `Comprimento: ${comprimento}m, Altura: ${altura}m`;
+                shapeLabel = comprimento === altura ? 'Quadrado' : 'Retângulo';
             } else { // Circle
                 const diametro = parseFloat(diametroInput.value) || 0;
+                rawDimensions.diametro = diametro;
                 perimetro = Math.PI * diametro;
                 area = Math.PI * Math.pow(diametro / 2, 2);
                 lonaLinearDimension = diametro;
+                dimensionsText = `Diâmetro: ${diametro}m`;
+                shapeLabel = 'Círculo';
             }
 
             const siliconePerimetro = perimetro;
@@ -248,6 +269,19 @@
                 { title: 'Fita de LED', unit: 'rolos de 3m', value: fitaLedRolos },
             ];
             
+            // Store results for PDF generation
+            lastCalculatedResults = {
+                shape: shapeLabel,
+                dimensions: dimensionsText,
+                rawDimensions: rawDimensions,
+                profile: `${profileName} (${profileUnit})`,
+                materials: resultsData,
+                power: {
+                    value: fontePotencia,
+                    rounded: Math.ceil(fontePotencia)
+                }
+            };
+
             resultsDiv.innerHTML = '';
             resultsData.forEach(item => {
                 const roundedValue = Math.ceil(item.value);
@@ -261,16 +295,138 @@
                 resultsDiv.innerHTML += resultCard;
             });
 
-            const roundedFonte = Math.ceil(fontePotencia);
             fonteResultDiv.innerHTML = `
-                <p class="value">${roundedFonte} W</p>
+                <p class="value">${lastCalculatedResults.power.rounded} W</p>
                 <p class="detail">Potência Mínima Recomendada</p>
-                <p class="detail">(${fontePotencia.toFixed(2)} W exato)</p>`;
+                <p class="detail">(${lastCalculatedResults.power.value.toFixed(2)} W exato)</p>`;
+        }
+
+        /**
+         * Generates and downloads a PDF with the calculated quantities.
+         */
+        function downloadPDF() {
+            const doc = new jsPDF();
+            const data = lastCalculatedResults;
+            const today = new Date().toLocaleDateString('pt-BR');
+
+            // Header
+            doc.setFontSize(18);
+            doc.text("Orçamento de Materiais - Lona Tensionada", 14, 22);
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            doc.text(`Data: ${today}`, 14, 29);
+
+            // Input Parameters
+            doc.setFontSize(12);
+            doc.setTextColor(0);
+            doc.text("Parâmetros do Projeto", 14, 45);
+            doc.autoTable({
+                startY: 48,
+                head: [['Forma', 'Dimensões', 'Tipo de Perfil']],
+                body: [[data.shape, data.dimensions, data.profile]],
+                theme: 'striped'
+            });
+            let lastY = doc.autoTable.previous.finalY;
+
+            // --- Add Geometric Drawing ---
+            doc.setFontSize(12);
+            doc.setTextColor(0);
+            doc.text(`Desenho Representativo - ${data.shape}`, 14, lastY + 15);
+
+            const drawStartY = lastY + 20;
+            const drawAreaWidth = doc.internal.pageSize.width - 28;
+            const drawCenterX = 14 + drawAreaWidth / 2;
+            const drawMaxHeight = 50;
+            let scale, w, h, x, y;
+
+            doc.setLineWidth(0.2);
+            doc.setDrawColor(50);
+            doc.setFontSize(8);
+            doc.setTextColor(80);
+
+            if (data.shape === 'Retângulo' || data.shape === 'Quadrado') {
+                const rawW = data.rawDimensions.comprimento;
+                const rawH = data.rawDimensions.altura;
+                if (rawW > 0 && rawH > 0) {
+                    if (rawW / drawAreaWidth > rawH / drawMaxHeight) {
+                        scale = (drawAreaWidth / rawW) * 0.8;
+                    } else {
+                        scale = (drawMaxHeight / rawH) * 0.8;
+                    }
+                    w = rawW * scale;
+                    h = rawH * scale;
+                    x = drawCenterX - w / 2;
+                    y = drawStartY;
+
+                    doc.rect(x, y, w, h);
+                    doc.line(x, y + h + 5, x + w, y + h + 5);
+                    doc.line(x, y + h + 3, x, y + h + 7);
+                    doc.line(x + w, y + h + 3, x + w, y + h + 7);
+                    doc.text(`${rawW}m`, x + w / 2, y + h + 9, { align: 'center' });
+                    doc.line(x - 5, y, x - 5, y + h);
+                    doc.line(x - 7, y, x - 3, y);
+                    doc.line(x - 7, y + h, x - 3, y + h);
+                    doc.text(`${rawH}m`, x - 7, y + h / 2, { align: 'right', baseline: 'middle' });
+                }
+            } else if (data.shape === 'Círculo') {
+                const rawD = data.rawDimensions.diametro;
+                if (rawD > 0) {
+                    const rawR = rawD / 2;
+                    scale = Math.min(drawAreaWidth, drawMaxHeight) / rawD * 0.8;
+                    const r = rawR * scale;
+                    x = drawCenterX;
+                    y = drawStartY + r;
+
+                    doc.circle(x, y, r);
+                    doc.line(x - r, y, x + r, y);
+                    doc.line(x - r, y - 2, x - r, y + 2);
+                    doc.line(x + r, y - 2, x + r, y + 2);
+                    doc.text(`${rawD}m`, x, y + 6, { align: 'center' });
+                }
+            }
+
+            const drawingFinalY = drawStartY + drawMaxHeight + 10;
+            lastY = drawingFinalY;
+
+            // Materials Table
+            const tableBody = data.materials.map(item => [
+                item.title,
+                Math.ceil(item.value),
+                item.unit,
+                item.value.toFixed(2)
+            ]);
+            
+            doc.setFontSize(12);
+            doc.setTextColor(0);
+            doc.text("Quantitativos de Materiais", 14, lastY);
+            doc.autoTable({
+                startY: lastY + 3,
+                head: [['Material', 'Qtd. (Arred.)', 'Unidade', 'Valor Exato']],
+                body: tableBody,
+                theme: 'grid'
+            });
+            lastY = doc.autoTable.previous.finalY;
+
+            // Power Supply
+            doc.text("Fonte de Alimentação Recomendada", 14, lastY + 10);
+            doc.autoTable({
+                startY: lastY + 13,
+                body: [
+                    [`Potência Mínima: ${data.power.rounded} W (Valor exato: ${data.power.value.toFixed(2)} W)`]
+                ]
+            });
+
+            // Footer
+            const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text("REPRESENTANTE COMERCIAL: Marcio Marques - (81) 9.9464-5392", 14, pageHeight - 10);
+
+            doc.save(`orcamento-lona-${new Date().getTime()}.pdf`);
         }
         
         /**
-         * Main handler for PDF file upload. Tries text extraction first,
-         * then falls back to AI image analysis.
+         * Main handler for PDF file upload.
          */
         async function handlePdfUpload(event) {
             const file = event.target.files[0];
@@ -282,10 +438,9 @@
             try {
                 const fileBuffer = await file.arrayBuffer();
                 const typedarray = new Uint8Array(fileBuffer);
-
-                // --- Step 1: Try Text Extraction ---
-                updateStatus('Tentando extração de texto...');
                 const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+                
+                updateStatus('Tentando extração de texto...');
                 let fullText = '';
                 for (let i = 1; i <= pdf.numPages; i++) {
                     const page = await pdf.getPage(i);
@@ -295,7 +450,6 @@
 
                 const foundText = parseTextAndFillInputs(fullText);
 
-                // --- Step 2: If text fails, use AI Vision ---
                 if (!foundText) {
                     updateStatus('Texto não encontrado. Analisando desenho com IA...');
                     await analyzePdfImageWithAI(pdf);
@@ -309,26 +463,22 @@
         }
 
         /**
-         * Renders the first page of a PDF to a canvas, converts it to a Base64
-         * image, and sends it to the Gemini API for analysis.
+         * Renders PDF page and sends to Gemini API for analysis.
          */
         async function analyzePdfImageWithAI(pdf) {
             try {
                 const page = await pdf.getPage(1);
-                const viewport = page.getViewport({ scale: 2.0 }); // Higher scale for better resolution
+                const viewport = page.getViewport({ scale: 2.0 });
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
 
                 await page.render({ canvasContext: context, viewport: viewport }).promise;
-                
                 const base64ImageData = canvas.toDataURL('image/png').split(',')[1];
 
-                // --- Call Gemini API ---
-                const apiKey = ""; // API key is handled by the environment
+                const apiKey = ""; // Handled by environment
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-                
                 const prompt = "Analise a imagem desta planta baixa ou desenho técnico. Extraia as dimensões principais (comprimento, altura/largura, diâmetro). Responda apenas com um objeto JSON. As chaves devem ser 'comprimento', 'altura', ou 'diametro'. O valor deve ser um número. Se uma medida não for encontrada, omita a chave. Exemplo: {\"comprimento\": 5.4, \"altura\": 3.2}";
 
                 const payload = {
@@ -346,14 +496,10 @@
                     body: JSON.stringify(payload)
                 });
                 
-                if (!response.ok) {
-                    throw new Error(`API Error: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
 
                 const result = await response.json();
                 const textResponse = result.candidates[0].content.parts[0].text;
-                
-                // Clean the response to get valid JSON
                 const jsonString = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
                 const dimensions = JSON.parse(jsonString);
 
@@ -381,15 +527,13 @@
                 document.querySelector('input[name="shape"][value="rectangle"]').checked = true;
                 if (dimensions.comprimento) comprimentoInput.value = dimensions.comprimento;
                 if (dimensions.altura) alturaInput.value = dimensions.altura;
-                if (dimensions.largura && !dimensions.altura) alturaInput.value = dimensions.largura; // Alias
+                if (dimensions.largura && !dimensions.altura) alturaInput.value = dimensions.largura;
             }
             handleShapeChange();
         }
 
-
         /**
          * Parses text to find measurements and updates input fields.
-         * @returns {boolean} - True if any measurement was found.
          */
         function parseTextAndFillInputs(text) {
             text = text.toLowerCase();
@@ -431,6 +575,7 @@
         allInputs.forEach(input => input.addEventListener('input', calculateMaterials));
         shapeRadios.forEach(radio => radio.addEventListener('change', handleShapeChange));
         pdfFileInput.addEventListener('change', handlePdfUpload);
+        downloadPdfBtn.addEventListener('click', downloadPDF);
 
         // --- Initial Setup ---
         window.addEventListener('load', () => {
