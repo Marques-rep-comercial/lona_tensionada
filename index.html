@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calculadora de Lona Tensionada Iluminada</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,23 +27,8 @@
             font-size: 0.8rem;
             color: #6b7280; /* gray-500 */
         }
-        #pdfUploadLabel, #downloadPdfBtn {
+        #downloadPdfBtn {
             cursor: pointer;
-        }
-        /* Spinner for loading indicator */
-        .loader {
-            border: 4px solid #f3f3f3; /* Light grey */
-            border-top: 4px solid #3498db; /* Blue */
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-            display: none; /* Hidden by default */
-            margin: 0 auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -55,14 +39,15 @@
         <!-- Header -->
         <div class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Calculadora de Lona Tensionada</h1>
-            <p class="text-gray-500 mt-2">Selecione a forma, insira as dimensões ou carregue um PDF com a planta.</p>
+            <p class="text-gray-500 mt-2">Selecione a forma e insira as dimensões.</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
             <!-- Input Section -->
             <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h2 class="text-2xl font-semibold text-gray-700 mb-6 border-b pb-3">Dimensões e Forma</h2>
+                <h2 class="text-2xl font-semibold text-gray-700 mb-2 border-b pb-3">Dimensões e Forma</h2>
+                <p class="text-red-600 text-sm font-semibold my-4">*Atenção para respeitar as seguintes medidas de altura das lonas (1.80m, 2.80m e 5.80m) todas com 100 metros lineares.</p>
 
                 <!-- Shape Selector -->
                 <div class="mb-4">
@@ -141,19 +126,6 @@
                     </div>
                 </div>
 
-                 <!-- PDF Upload -->
-                <div class="mt-6">
-                    <label id="pdfUploadLabel" for="pdfFile" class="w-full inline-block text-center bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
-                        Carregar PDF com Medidas
-                    </label>
-                    <input type="file" id="pdfFile" class="hidden" accept=".pdf">
-                    <div class="text-center mt-2">
-                         <div id="loader" class="loader"></div>
-                         <p id="pdfStatus" class="text-xs text-gray-500"></p>
-                    </div>
-                </div>
-
-
                 <!-- Advanced Settings -->
                 <div class="mt-8">
                     <h3 class="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Configurações Avançadas</h3>
@@ -198,8 +170,6 @@
     </div>
 
     <script>
-        // --- Setup PDF.js worker ---
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js`;
         const { jsPDF } = window.jspdf;
 
         // --- DOM Element References ---
@@ -221,21 +191,9 @@
         const circleInputsDiv = document.getElementById('circleInputs');
         const ellipseInputsDiv = document.getElementById('ellipseInputs');
         const customInputsDiv = document.getElementById('customInputs');
-        const pdfFileInput = document.getElementById('pdfFile');
-        const pdfStatus = document.getElementById('pdfStatus');
-        const loader = document.getElementById('loader');
         const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 
         let lastCalculatedResults = {};
-
-        // --- UI Update Functions ---
-        function showLoader(isLoading) {
-            loader.style.display = isLoading ? 'block' : 'none';
-        }
-
-        function updateStatus(message) {
-            pdfStatus.textContent = message;
-        }
 
         /**
          * Toggles input visibility based on selected shape.
@@ -291,10 +249,8 @@
             `;
             customSidesContainer.appendChild(newSideDiv);
             
-            // Add event listener for the input
             newSideDiv.querySelector('input').addEventListener('input', calculateMaterials);
             
-            // Add event listener for the remove button
             newSideDiv.querySelector('.remove-side-btn').addEventListener('click', () => {
                 newSideDiv.remove();
                 relabelCustomSides();
@@ -531,130 +487,10 @@
             doc.save(`orcamento-lona-${new Date().getTime()}.pdf`);
         }
         
-        async function handlePdfUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            showLoader(true);
-            updateStatus('Lendo PDF...');
-            try {
-                const fileBuffer = await file.arrayBuffer();
-                const typedarray = new Uint8Array(fileBuffer);
-                const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
-                updateStatus('Tentando extração de texto...');
-                let fullText = '';
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
-                    fullText += textContent.items.map(item => item.str).join(' ');
-                }
-                const foundText = parseTextAndFillInputs(fullText);
-                if (!foundText) {
-                    updateStatus('Texto não encontrado. Analisando desenho com IA...');
-                    await analyzePdfImageWithAI(pdf);
-                }
-            } catch (error) {
-                console.error('Error processing PDF:', error);
-                updateStatus('Erro ao processar o PDF.');
-            } finally {
-                showLoader(false);
-            }
-        }
-
-        async function analyzePdfImageWithAI(pdf) {
-            try {
-                const page = await pdf.getPage(1);
-                const viewport = page.getViewport({ scale: 2.0 });
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                await page.render({ canvasContext: context, viewport: viewport }).promise;
-                const base64ImageData = canvas.toDataURL('image/png').split(',')[1];
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-                const prompt = "Analise a imagem desta planta baixa ou desenho técnico. Extraia as dimensões principais (comprimento, altura/largura, diâmetro, eixo maior, eixo menor). Responda apenas com um objeto JSON. As chaves devem ser 'comprimento', 'altura', 'diametro', 'eixoMaior', ou 'eixoMenor'. O valor deve ser um número. Se uma medida não for encontrada, omita a chave. Exemplo: {\"eixoMaior\": 5.4, \"eixoMenor\": 3.2}";
-                const payload = { contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/png", data: base64ImageData } }] }] };
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-                const result = await response.json();
-                const textResponse = result.candidates[0].content.parts[0].text;
-                const jsonString = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-                const dimensions = JSON.parse(jsonString);
-                if (Object.keys(dimensions).length > 0) {
-                    fillInputsFromAI(dimensions);
-                    updateStatus('Análise de imagem concluída!');
-                } else {
-                    updateStatus('IA não encontrou medidas. Preencha manualmente.');
-                }
-            } catch (error) {
-                console.error('AI Analysis Error:', error);
-                updateStatus('Falha na análise com IA.');
-            }
-        }
-
-        function fillInputsFromAI(dimensions) {
-            if (dimensions.eixoMaior || dimensions.eixoMenor) {
-                document.querySelector('input[name="shape"][value="ellipse"]').checked = true;
-                if(dimensions.eixoMaior) eixoMaiorInput.value = dimensions.eixoMaior;
-                if(dimensions.eixoMenor) eixoMenorInput.value = dimensions.eixoMenor;
-            } else if (dimensions.diametro) {
-                document.querySelector('input[name="shape"][value="circle"]').checked = true;
-                diametroInput.value = dimensions.diametro;
-            } else {
-                document.querySelector('input[name="shape"][value="rectangle"]').checked = true;
-                if (dimensions.comprimento) comprimentoInput.value = dimensions.comprimento;
-                if (dimensions.altura) alturaInput.value = dimensions.altura;
-                if (dimensions.largura && !dimensions.altura) alturaInput.value = dimensions.largura;
-            }
-            handleShapeChange();
-        }
-
-        function parseTextAndFillInputs(text) {
-            text = text.toLowerCase();
-            let found = false;
-            const findValue = (keyword) => {
-                const regex = new RegExp(`${keyword}[\\s:;=]*(\\d+[.,]?\\d*)`, 'i');
-                const match = text.match(regex);
-                return match ? parseFloat(match[1].replace(',', '.')) : null;
-            };
-
-            const eixoMaior = findValue('eixo maior');
-            const eixoMenor = findValue('eixo menor');
-            if(eixoMaior || eixoMenor) {
-                document.querySelector('input[name="shape"][value="ellipse"]').checked = true;
-                if(eixoMaior) eixoMaiorInput.value = eixoMaior;
-                if(eixoMenor) eixoMenorInput.value = eixoMenor;
-                found = true;
-            } else {
-                const diametro = findValue('di[âa]metro');
-                if (diametro) {
-                    document.querySelector('input[name="shape"][value="circle"]').checked = true;
-                    diametroInput.value = diametro;
-                    found = true;
-                } else {
-                    const comprimento = findValue('comprimento|largura');
-                    const altura = findValue('altura');
-                    if (comprimento || altura) {
-                        document.querySelector('input[name="shape"][value="rectangle"]').checked = true;
-                        if(comprimento) comprimentoInput.value = comprimento;
-                        if(altura) alturaInput.value = altura;
-                        found = true;
-                    }
-                }
-            }
-            
-            if (found) {
-                updateStatus('Medidas extraídas do texto do PDF!');
-                handleShapeChange();
-            }
-            return found;
-        }
-
         // --- Event Listeners ---
         const allInputs = [comprimentoInput, alturaInput, diametroInput, eixoMaiorInput, eixoMenorInput, customAreaInput, potenciaFitaInput, espacamentoFitaInput, profileTypeSelect];
         allInputs.forEach(input => input.addEventListener('input', calculateMaterials));
         shapeRadios.forEach(radio => radio.addEventListener('change', handleShapeChange));
-        pdfFileInput.addEventListener('change', handlePdfUpload);
         downloadPdfBtn.addEventListener('click', downloadPDF);
         addSideBtn.addEventListener('click', addSideInput);
 
