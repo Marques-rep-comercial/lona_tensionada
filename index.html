@@ -324,13 +324,14 @@
             const perfilQuantidade = perimetro / profileBarLength;
             const metragemFita = espacamentoFita > 0 ? area / espacamentoFita : 0;
             const fitaLedRolos = metragemFita / 3;
-            const fontePotencia = metragemFita * potenciaFita;
+            // Add 20% safety margin to power supply calculation
+            const fontePotencia = (metragemFita * potenciaFita) * 1.20;
 
             const resultsData = [
                 { title: 'Lona', unit: 'metros linear', value: lonaLinearDimension },
                 { title: 'Silicone', unit: 'metros', value: siliconePerimetro },
                 { title: profileName, unit: profileUnit, value: perfilQuantidade },
-                { title: 'Fita de LED', unit: 'rolos de 3m', value: fitaLedRolos },
+                { title: 'Fita de LED', unit: 'rolos de 3m', value: fitaLedRolos, linearMeters: metragemFita },
             ];
             
             lastCalculatedResults = {
@@ -345,19 +346,24 @@
             resultsDiv.innerHTML = '';
             resultsData.forEach(item => {
                 const roundedValue = Math.ceil(item.value);
+                let extraDetailHTML = `<p class="detail">(${item.value.toFixed(2)} exato)</p>`;
+                // Add linear meters detail for LED strip
+                if (item.linearMeters !== undefined) {
+                    extraDetailHTML += `<p class="detail">${item.linearMeters.toFixed(2)}m lineares</p>`;
+                }
                 const resultCard = `
                     <div class="result-card bg-white p-4 rounded-lg shadow-sm text-center border">
                         <h3>${item.title}</h3>
                         <p class="value">${roundedValue}</p>
                         <p class="detail">${item.unit}</p>
-                        <p class="detail">(${item.value.toFixed(2)} exato)</p>
+                        ${extraDetailHTML}
                     </div>`;
                 resultsDiv.innerHTML += resultCard;
             });
 
             fonteResultDiv.innerHTML = `
                 <p class="value">${lastCalculatedResults.power.rounded} W</p>
-                <p class="detail">Potência Mínima Recomendada</p>
+                <p class="detail">Potência Recomendada (+20%)</p>
                 <p class="detail">(${lastCalculatedResults.power.value.toFixed(2)} W exato)</p>`;
         }
 
@@ -453,12 +459,18 @@
                 lastY += 5;
             }
             
-            const tableBody = data.materials.map(item => [
-                item.title,
-                Math.ceil(item.value),
-                item.unit,
-                item.value.toFixed(2)
-            ]);
+            const tableBody = data.materials.map(item => {
+                let unitText = item.unit;
+                if (item.linearMeters !== undefined) {
+                    unitText += ` (${item.linearMeters.toFixed(2)}m)`;
+                }
+                 return [
+                    item.title,
+                    Math.ceil(item.value),
+                    unitText,
+                    item.value.toFixed(2)
+                ];
+            });
             
             doc.setFontSize(12);
             doc.setTextColor(0);
@@ -475,7 +487,7 @@
             doc.autoTable({
                 startY: lastY + 13,
                 body: [
-                    [`Potência Mínima: ${data.power.rounded} W (Valor exato: ${data.power.value.toFixed(2)} W)`]
+                    [`Potência Mínima (+20%): ${data.power.rounded} W (Valor exato: ${data.power.value.toFixed(2)} W)`]
                 ]
             });
 
