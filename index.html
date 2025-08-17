@@ -34,12 +34,12 @@
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-    <div class="w-full max-w-4xl bg-white rounded-2xl shadow-lg p-6 md:p-8">
+    <div class="w-full max-w-6xl bg-white rounded-2xl shadow-lg p-6 md:p-8">
 
         <!-- Header -->
         <div class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Calculadora de Lona Tensionada</h1>
-            <p class="text-gray-500 mt-2">Selecione a forma e insira as dimensões.</p>
+            <p class="text-gray-500 mt-2">Calcule os materiais para cada lona e adicione ao projeto para somar os totais.</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -144,7 +144,7 @@
 
             <!-- Output Section -->
             <div class="bg-blue-50 p-6 rounded-lg border border-blue-200 flex flex-col">
-                <h2 class="text-2xl font-semibold text-gray-700 mb-6 border-b pb-3">Quantitativos de Materiais</h2>
+                <h2 class="text-2xl font-semibold text-gray-700 mb-6 border-b pb-3">Quantitativos da Lona Atual</h2>
                 <div id="results" class="grid grid-cols-2 sm:grid-cols-2 gap-4">
                     <!-- Results will be injected here -->
                 </div>
@@ -155,13 +155,35 @@
                     </div>
                 </div>
                 <div class="mt-auto pt-6">
-                     <button id="downloadPdfBtn" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-md hover:bg-green-700 transition-colors">
-                        Baixar Quantitativos (PDF)
+                     <button id="addToProjectBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 transition-colors">
+                        Adicionar Lona a lista
                     </button>
                 </div>
             </div>
         </div>
         
+        <!-- Project List Section -->
+        <div id="projectSection" class="mt-8 pt-8 border-t hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-3xl font-bold text-gray-800">Lista do Projeto</h2>
+                <button id="clearProjectBtn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-md hover:bg-red-600 transition-colors text-sm">Limpar Projeto</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div id="projectItemsList" class="space-y-3 max-h-96 overflow-y-auto">
+                    <!-- Project items will be listed here -->
+                </div>
+                <div class="bg-green-50 p-6 rounded-lg border border-green-200">
+                    <h3 class="text-2xl font-semibold text-gray-700 mb-4">Total do Projeto</h3>
+                    <div id="projectTotals" class="space-y-2">
+                        <!-- Project totals will be displayed here -->
+                    </div>
+                     <button id="downloadPdfBtn" class="w-full mt-6 bg-green-600 text-white font-bold py-3 px-4 rounded-md hover:bg-green-700 transition-colors">
+                        Baixar PDF do Projeto
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Footer -->
         <div class="text-center mt-8 pt-6 border-t border-gray-200">
             <p class="text-sm text-gray-600 font-semibold">REPRESENTANTE COMERCIAL</p>
@@ -192,8 +214,14 @@
         const ellipseInputsDiv = document.getElementById('ellipseInputs');
         const customInputsDiv = document.getElementById('customInputs');
         const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+        const addToProjectBtn = document.getElementById('addToProjectBtn');
+        const clearProjectBtn = document.getElementById('clearProjectBtn');
+        const projectSection = document.getElementById('projectSection');
+        const projectItemsList = document.getElementById('projectItemsList');
+        const projectTotals = document.getElementById('projectTotals');
 
         let lastCalculatedResults = {};
+        let projectItems = [];
 
         /**
          * Toggles input visibility based on selected shape.
@@ -205,52 +233,37 @@
             ellipseInputsDiv.classList.add('hidden');
             customInputsDiv.classList.add('hidden');
 
-            if (selectedShape === 'rectangle') {
-                rectangleInputsDiv.classList.remove('hidden');
-            } else if (selectedShape === 'circle') {
-                circleInputsDiv.classList.remove('hidden');
-            } else if (selectedShape === 'ellipse') {
-                ellipseInputsDiv.classList.remove('hidden');
-            } else if (selectedShape === 'custom') {
+            if (selectedShape === 'rectangle') rectangleInputsDiv.classList.remove('hidden');
+            else if (selectedShape === 'circle') circleInputsDiv.classList.remove('hidden');
+            else if (selectedShape === 'ellipse') ellipseInputsDiv.classList.remove('hidden');
+            else if (selectedShape === 'custom') {
                 customInputsDiv.classList.remove('hidden');
                 if (customSidesContainer.children.length === 0) {
-                    addSideInput();
-                    addSideInput();
-                    addSideInput();
+                    addSideInput(); addSideInput(); addSideInput();
                 }
             }
             calculateMaterials();
         }
 
-        /**
-         * Re-labels the side inputs sequentially after a removal.
-         */
         function relabelCustomSides() {
             const sideDivs = customSidesContainer.children;
             for (let i = 0; i < sideDivs.length; i++) {
                 const label = sideDivs[i].querySelector('label');
-                if (label) {
-                    label.textContent = `Lado ${i + 1} (metros)`;
-                }
+                if (label) label.textContent = `Lado ${i + 1} (metros)`;
             }
         }
 
-        /**
-         * Adds a new input field for a side of the custom shape.
-         */
         function addSideInput() {
             const sideCount = customSidesContainer.children.length + 1;
             const newSideDiv = document.createElement('div');
             newSideDiv.className = 'flex items-center gap-2';
             newSideDiv.innerHTML = `
-                <label for="side${sideCount}" class="block text-sm font-medium text-gray-700 mb-1 flex-grow">Lado ${sideCount} (metros)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1 flex-grow">Lado ${sideCount} (metros)</label>
                 <input type="number" class="w-full p-2 bg-white border border-gray-300 rounded-md shadow-sm custom-side-input" value="1.0">
-                <button type="button" class="remove-side-btn bg-red-500 text-white font-bold w-8 h-8 rounded-md hover:bg-red-600 transition-colors flex items-center justify-center">-</button>
+                <button type="button" class="remove-side-btn bg-red-500 text-white font-bold w-8 h-8 rounded-md hover:bg-red-600 flex items-center justify-center">-</button>
             `;
             customSidesContainer.appendChild(newSideDiv);
-            
             newSideDiv.querySelector('input').addEventListener('input', calculateMaterials);
-            
             newSideDiv.querySelector('.remove-side-btn').addEventListener('click', () => {
                 newSideDiv.remove();
                 relabelCustomSides();
@@ -258,252 +271,311 @@
             });
         }
 
-        /**
-         * Calculates all material quantities based on user inputs.
-         */
         function calculateMaterials() {
             const selectedShape = document.querySelector('input[name="shape"]:checked').value;
             const potenciaFita = parseFloat(potenciaFitaInput.value) || 0;
             const espacamentoFita = parseFloat(espacamentoFitaInput.value) || 0.07;
-            
             const selectedProfileOption = profileTypeSelect.options[profileTypeSelect.selectedIndex];
             const profileBarLength = parseFloat(selectedProfileOption.value) || 2.5;
             const profileName = selectedProfileOption.getAttribute('data-name');
             const profileUnit = `barras de ${profileBarLength.toString().replace('.',',')}m`;
 
-            let perimetro = 0;
-            let area = 0;
-            let lonaLinearDimension = 0;
-            let dimensionsText = '';
-            let shapeLabel = '';
+            let perimetro = 0, area = 0, lonaLinearDimension = 0, dimensionsText = '', shapeLabel = '';
             const rawDimensions = {};
 
             if (selectedShape === 'rectangle') {
-                const comprimento = parseFloat(comprimentoInput.value) || 0;
-                const altura = parseFloat(alturaInput.value) || 0;
-                rawDimensions.comprimento = comprimento;
-                rawDimensions.altura = altura;
-                perimetro = (comprimento + altura) * 2;
-                area = comprimento * altura;
-                lonaLinearDimension = comprimento;
-                dimensionsText = `Comprimento: ${comprimento}m, Altura: ${altura}m`;
-                shapeLabel = comprimento === altura ? 'Quadrado' : 'Retângulo';
+                const c = parseFloat(comprimentoInput.value) || 0;
+                const a = parseFloat(alturaInput.value) || 0;
+                rawDimensions.comprimento = c; rawDimensions.altura = a;
+                perimetro = (c + a) * 2; area = c * a; lonaLinearDimension = c;
+                dimensionsText = `Comprimento: ${c}m, Altura: ${a}m`;
+                shapeLabel = c === a ? 'Quadrado' : 'Retângulo';
             } else if (selectedShape === 'circle') {
-                const diametro = parseFloat(diametroInput.value) || 0;
-                rawDimensions.diametro = diametro;
-                perimetro = Math.PI * diametro;
-                area = Math.PI * Math.pow(diametro / 2, 2);
-                lonaLinearDimension = diametro;
-                dimensionsText = `Diâmetro: ${diametro}m`;
-                shapeLabel = 'Círculo';
+                const d = parseFloat(diametroInput.value) || 0;
+                rawDimensions.diametro = d;
+                perimetro = Math.PI * d; area = Math.PI * Math.pow(d / 2, 2); lonaLinearDimension = d;
+                dimensionsText = `Diâmetro: ${d}m`; shapeLabel = 'Círculo';
             } else if (selectedShape === 'ellipse') {
-                const eixoMaior = parseFloat(eixoMaiorInput.value) || 0;
-                const eixoMenor = parseFloat(eixoMenorInput.value) || 0;
-                rawDimensions.eixoMaior = eixoMaior;
-                rawDimensions.eixoMenor = eixoMenor;
-                const a = eixoMaior / 2;
-                const b = eixoMenor / 2;
+                const eM = parseFloat(eixoMaiorInput.value) || 0;
+                const em = parseFloat(eixoMenorInput.value) || 0;
+                rawDimensions.eixoMaior = eM; rawDimensions.eixoMenor = em;
+                const a = eM / 2, b = em / 2;
                 perimetro = Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
-                area = Math.PI * a * b;
-                lonaLinearDimension = eixoMaior;
-                dimensionsText = `Eixo Maior: ${eixoMaior}m, Eixo Menor: ${eixoMenor}m`;
+                area = Math.PI * a * b; lonaLinearDimension = eM;
+                dimensionsText = `Eixo Maior: ${eM}m, Eixo Menor: ${em}m`;
                 shapeLabel = 'Elipse';
             } else if (selectedShape === 'custom') {
-                const sideInputs = document.querySelectorAll('.custom-side-input');
-                const sides = Array.from(sideInputs).map(input => parseFloat(input.value) || 0);
+                const sides = Array.from(document.querySelectorAll('.custom-side-input')).map(i => parseFloat(i.value) || 0);
                 rawDimensions.sides = sides;
                 rawDimensions.area = parseFloat(customAreaInput.value) || 0;
-                perimetro = sides.reduce((sum, side) => sum + side, 0);
+                perimetro = sides.reduce((s, c) => s + c, 0);
                 area = rawDimensions.area;
                 lonaLinearDimension = Math.max(...sides, 0);
                 dimensionsText = `Lados: ${sides.join('m, ')}m. Área: ${area}m²`;
                 shapeLabel = 'Polígono Irregular';
             }
 
-            const siliconePerimetro = perimetro;
-            const perfilQuantidade = perimetro / profileBarLength;
             const metragemFita = espacamentoFita > 0 ? area / espacamentoFita : 0;
-            const fitaLedRolos = metragemFita / 3;
-            // Add 20% safety margin to power supply calculation
             const fontePotencia = (metragemFita * potenciaFita) * 1.20;
 
             const resultsData = [
                 { title: 'Lona', unit: 'metros linear', value: lonaLinearDimension },
-                { title: 'Silicone', unit: 'metros', value: siliconePerimetro },
-                { title: profileName, unit: profileUnit, value: perfilQuantidade },
-                { title: 'Fita de LED', unit: 'rolos de 3m', value: fitaLedRolos, linearMeters: metragemFita },
+                { title: 'Silicone', unit: 'metros', value: perimetro },
+                { title: profileName, unit: profileUnit, value: perimetro / profileBarLength },
+                { title: 'Fita de LED', unit: 'rolos de 3m', value: metragemFita / 3, linearMeters: metragemFita },
             ];
             
             lastCalculatedResults = {
-                shape: shapeLabel,
-                dimensions: dimensionsText,
-                rawDimensions: rawDimensions,
-                profile: `${profileName} (${profileUnit})`,
-                materials: resultsData,
-                power: { value: fontePotencia, rounded: Math.ceil(fontePotencia) }
+                shape: shapeLabel, dimensions: dimensionsText, rawDimensions, profile: `${profileName} (${profileUnit})`,
+                materials: resultsData, power: { value: fontePotencia, rounded: Math.ceil(fontePotencia) }
             };
 
             resultsDiv.innerHTML = '';
             resultsData.forEach(item => {
-                const roundedValue = Math.ceil(item.value);
                 let extraDetailHTML = `<p class="detail">(${item.value.toFixed(2)} exato)</p>`;
-                // Add linear meters detail for LED strip
-                if (item.linearMeters !== undefined) {
-                    extraDetailHTML += `<p class="detail">${item.linearMeters.toFixed(2)}m lineares</p>`;
-                }
-                const resultCard = `
+                if (item.linearMeters !== undefined) extraDetailHTML += `<p class="detail">${item.linearMeters.toFixed(2)}m lineares</p>`;
+                resultsDiv.innerHTML += `
                     <div class="result-card bg-white p-4 rounded-lg shadow-sm text-center border">
-                        <h3>${item.title}</h3>
-                        <p class="value">${roundedValue}</p>
-                        <p class="detail">${item.unit}</p>
-                        ${extraDetailHTML}
+                        <h3>${item.title}</h3> <p class="value">${Math.ceil(item.value)}</p>
+                        <p class="detail">${item.unit}</p> ${extraDetailHTML}
                     </div>`;
-                resultsDiv.innerHTML += resultCard;
             });
-
             fonteResultDiv.innerHTML = `
                 <p class="value">${lastCalculatedResults.power.rounded} W</p>
                 <p class="detail">Potência Recomendada (+20%)</p>
                 <p class="detail">(${lastCalculatedResults.power.value.toFixed(2)} W exato)</p>`;
         }
 
-        /**
-         * Generates and downloads a PDF with the calculated quantities.
-         */
-        function downloadPDF() {
+        function addCurrentItemToProject() {
+            projectItems.push(JSON.parse(JSON.stringify(lastCalculatedResults)));
+            updateProjectUI();
+        }
+
+        function updateProjectUI() {
+            projectSection.classList.remove('hidden');
+            
+            // Render list
+            projectItemsList.innerHTML = '';
+            projectItems.forEach((item, index) => {
+                projectItemsList.innerHTML += `
+                    <div class="bg-white p-3 rounded-lg shadow-sm border flex justify-between items-center">
+                        <div>
+                            <p class="font-bold">${index + 1}. ${item.shape}</p>
+                            <p class="text-xs text-gray-600">${item.dimensions}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Calculate and render totals
+            const totals = {};
+            let totalPower = 0;
+            projectItems.forEach(item => {
+                item.materials.forEach(mat => {
+                    const key = mat.title;
+                    if (!totals[key]) totals[key] = { value: 0, unit: mat.unit, linearMeters: 0 };
+                    totals[key].value += mat.value;
+                    if (mat.linearMeters) totals[key].linearMeters += mat.linearMeters;
+                });
+                totalPower += item.power.value;
+            });
+
+            projectTotals.innerHTML = '';
+            for (const key in totals) {
+                const total = totals[key];
+                let extraDetailHTML = `(${total.value.toFixed(2)} exato)`;
+                if (key === 'Fita de LED') extraDetailHTML += `, ${total.linearMeters.toFixed(2)}m lineares`;
+
+                projectTotals.innerHTML += `
+                    <div class="flex justify-between items-baseline">
+                        <span class="font-semibold text-gray-800">${key}:</span>
+                        <span class="font-bold text-lg text-blue-700">${Math.ceil(total.value)} ${total.unit.split(' ')[0]}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 text-right -mt-2">${extraDetailHTML}</p>
+                `;
+            }
+            projectTotals.innerHTML += `
+                <div class="flex justify-between items-baseline mt-4 border-t pt-2">
+                    <span class="font-semibold text-gray-800">Fonte de Alimentação:</span>
+                    <span class="font-bold text-lg text-blue-700">${Math.ceil(totalPower)} W</span>
+                </div>
+                 <p class="text-xs text-gray-500 text-right -mt-2">(+20% margem)</p>
+            `;
+        }
+
+        function clearProject() {
+            projectItems = [];
+            projectSection.classList.add('hidden');
+            projectItemsList.innerHTML = '';
+            projectTotals.innerHTML = '';
+        }
+
+        function downloadProjectPDF() {
             const doc = new jsPDF();
-            const data = lastCalculatedResults;
             const today = new Date().toLocaleDateString('pt-BR');
+            let lastY = 29;
 
             doc.setFontSize(18);
-            doc.text("Orçamento de Materiais - Lona Tensionada", 14, 22);
-            doc.setFontSize(11);
-            doc.setTextColor(100);
-            doc.text(`Data: ${today}`, 14, 29);
+            doc.text("Orçamento Consolidado de Projeto", 14, 22);
+            doc.setFontSize(11); doc.setTextColor(100);
+            doc.text(`Data: ${today}`, 14, lastY);
 
-            doc.setFontSize(12);
-            doc.setTextColor(0);
-            doc.text("Parâmetros do Projeto", 14, 45);
-            doc.autoTable({
-                startY: 48,
-                head: [['Forma', 'Dimensões', 'Tipo de Perfil']],
-                body: [[data.shape, data.dimensions, data.profile]],
-                theme: 'striped'
-            });
-            let lastY = doc.autoTable.previous.finalY;
+            // --- INVERTED ORDER: DETAILS FIRST ---
+            doc.setFontSize(14); doc.setTextColor(0);
+            doc.text("Detalhamento por Lona", 14, lastY + 15);
+            lastY += 20;
 
-            if (data.shape !== 'Polígono Irregular') {
-                doc.setFontSize(12);
-                doc.setTextColor(0);
-                doc.text(`Desenho Representativo - ${data.shape}`, 14, lastY + 15);
-                const drawStartY = lastY + 20;
-                const drawAreaWidth = doc.internal.pageSize.width - 28;
-                const drawCenterX = 14 + drawAreaWidth / 2;
-                const drawMaxHeight = 50;
-                let scale, w, h, x, y;
+            // Individual Items
+            projectItems.forEach((data, index) => {
+                if (lastY > 200) { doc.addPage(); lastY = 22; }
+                
+                doc.setFontSize(12); doc.setTextColor(0);
+                doc.text(`Item ${index + 1}: ${data.shape}`, 14, lastY);
+                doc.autoTable({
+                    startY: lastY + 3,
+                    head: [['Dimensões', 'Tipo de Perfil']],
+                    body: [[data.dimensions, data.profile]],
+                    theme: 'striped'
+                });
+                lastY = doc.autoTable.previous.finalY;
 
-                doc.setLineWidth(0.2);
-                doc.setDrawColor(50);
-                doc.setFontSize(8);
-                doc.setTextColor(80);
+                // --- DRAWING LOGIC ---
+                if (data.shape !== 'Polígono Irregular') {
+                    doc.setFontSize(10);
+                    doc.setTextColor(0);
+                    doc.text(`Desenho Representativo`, 14, lastY + 8);
+                    const drawStartY = lastY + 12;
+                    const drawAreaWidth = doc.internal.pageSize.width - 28;
+                    const drawCenterX = 14 + drawAreaWidth / 2;
+                    const drawMaxHeight = 40;
+                    let scale, w, h, x, y;
 
-                if (data.shape === 'Retângulo' || data.shape === 'Quadrado') {
-                    const rawW = data.rawDimensions.comprimento;
-                    const rawH = data.rawDimensions.altura;
-                    if (rawW > 0 && rawH > 0) {
-                        scale = Math.min((drawAreaWidth / rawW) * 0.8, (drawMaxHeight / rawH) * 0.8);
-                        w = rawW * scale;
-                        h = rawH * scale;
-                        x = drawCenterX - w / 2;
-                        y = drawStartY;
-                        doc.rect(x, y, w, h);
-                        doc.line(x, y + h + 5, x + w, y + h + 5);
-                        doc.line(x, y + h + 3, x, y + h + 7);
-                        doc.line(x + w, y + h + 3, x + w, y + h + 7);
-                        doc.text(`${rawW}m`, x + w / 2, y + h + 9, { align: 'center' });
-                        doc.line(x - 5, y, x - 5, y + h);
-                        doc.line(x - 7, y, x - 3, y);
-                        doc.line(x - 7, y + h, x - 3, y + h);
-                        doc.text(`${rawH}m`, x - 7, y + h / 2, { align: 'right', baseline: 'middle' });
+                    doc.setLineWidth(0.2);
+                    doc.setDrawColor(50);
+                    doc.setFontSize(8);
+                    doc.setTextColor(80);
+
+                    if (data.shape === 'Retângulo' || data.shape === 'Quadrado') {
+                        const rawW = data.rawDimensions.comprimento;
+                        const rawH = data.rawDimensions.altura;
+                        if (rawW > 0 && rawH > 0) {
+                            scale = Math.min((drawAreaWidth / rawW) * 0.5, (drawMaxHeight / rawH) * 0.8);
+                            w = rawW * scale;
+                            h = rawH * scale;
+                            x = drawCenterX - w / 2;
+                            y = drawStartY;
+                            doc.rect(x, y, w, h);
+                            doc.line(x, y + h + 5, x + w, y + h + 5);
+                            doc.line(x, y + h + 3, x, y + h + 7);
+                            doc.line(x + w, y + h + 3, x + w, y + h + 7);
+                            doc.text(`${rawW}m`, x + w / 2, y + h + 9, { align: 'center' });
+                            doc.line(x - 5, y, x - 5, y + h);
+                            doc.line(x - 7, y, x - 3, y);
+                            doc.line(x - 7, y + h, x - 3, y + h);
+                            doc.text(`${rawH}m`, x - 7, y + h / 2, { align: 'right', baseline: 'middle' });
+                        }
+                    } else if (data.shape === 'Círculo') {
+                        const rawD = data.rawDimensions.diametro;
+                        if (rawD > 0) {
+                            const r = (rawD / 2) * (Math.min(drawAreaWidth, drawMaxHeight) / rawD * 0.6);
+                            x = drawCenterX;
+                            y = drawStartY + r;
+                            doc.circle(x, y, r);
+                            doc.line(x - r, y, x + r, y);
+                            doc.line(x - r, y - 2, x - r, y + 2);
+                            doc.line(x + r, y - 2, x + r, y + 2);
+                            doc.text(`${rawD}m`, x, y + 6, { align: 'center' });
+                        }
+                    } else if (data.shape === 'Elipse') {
+                        const rawW = data.rawDimensions.eixoMaior;
+                        const rawH = data.rawDimensions.eixoMenor;
+                        if (rawW > 0 && rawH > 0) {
+                            scale = Math.min((drawAreaWidth / rawW) * 0.5, (drawMaxHeight / rawH) * 0.8);
+                            const rx = (rawW / 2) * scale;
+                            const ry = (rawH / 2) * scale;
+                            x = drawCenterX;
+                            y = drawStartY + ry;
+                            doc.ellipse(x, y, rx, ry);
+                            doc.line(x - rx, y, x + rx, y);
+                            doc.text(`${rawW}m`, x, y + 4, { align: 'center' });
+                            doc.line(x, y - ry, x, y + ry);
+                            doc.text(`${rawH}m`, x + 4, y, { align: 'left', baseline: 'middle' });
+                        }
                     }
-                } else if (data.shape === 'Círculo') {
-                    const rawD = data.rawDimensions.diametro;
-                    if (rawD > 0) {
-                        const r = (rawD / 2) * (Math.min(drawAreaWidth, drawMaxHeight) / rawD * 0.8);
-                        x = drawCenterX;
-                        y = drawStartY + r;
-                        doc.circle(x, y, r);
-                        doc.line(x - r, y, x + r, y);
-                        doc.line(x - r, y - 2, x - r, y + 2);
-                        doc.line(x + r, y - 2, x + r, y + 2);
-                        doc.text(`${rawD}m`, x, y + 6, { align: 'center' });
-                    }
-                } else if (data.shape === 'Elipse') {
-                    const rawW = data.rawDimensions.eixoMaior;
-                    const rawH = data.rawDimensions.eixoMenor;
-                    if (rawW > 0 && rawH > 0) {
-                        scale = Math.min((drawAreaWidth / rawW) * 0.8, (drawMaxHeight / rawH) * 0.8);
-                        const rx = (rawW / 2) * scale;
-                        const ry = (rawH / 2) * scale;
-                        x = drawCenterX;
-                        y = drawStartY + ry;
-                        doc.ellipse(x, y, rx, ry);
-                        doc.line(x - rx, y, x + rx, y);
-                        doc.text(`${rawW}m`, x, y + 4, { align: 'center' });
-                        doc.line(x, y - ry, x, y + ry);
-                        doc.text(`${rawH}m`, x + 4, y, { align: 'left', baseline: 'middle' });
-                    }
+                    lastY = drawStartY + drawMaxHeight + 5;
+                } else {
+                    lastY += 5;
                 }
-                lastY = drawStartY + drawMaxHeight + 10;
-            } else {
-                lastY += 5;
+                
+                const tableBody = data.materials.map(item => {
+                    let unitText = item.unit;
+                    if (item.linearMeters) unitText += ` (${item.linearMeters.toFixed(2)}m)`;
+                    return [item.title, Math.ceil(item.value), unitText, item.value.toFixed(2)];
+                });
+                 tableBody.push(["Fonte (+20%)", `${data.power.rounded} W`, `Potência Recomendada`, data.power.value.toFixed(2)]);
+
+                doc.autoTable({
+                    startY: lastY + 2,
+                    head: [['Material', 'Qtd. (Arred.)', 'Unidade', 'Valor Exato']],
+                    body: tableBody,
+                    theme: 'grid',
+                    styles: { fontSize: 9 },
+                    headStyles: { fontSize: 10 }
+                });
+                lastY = doc.autoTable.previous.finalY + 15;
+            });
+
+            // --- TOTALS LAST ---
+            if (projectItems.length > 0) doc.addPage();
+            lastY = 22;
+            doc.setFontSize(14); doc.setTextColor(0);
+            doc.text("Total Geral dos Materiais", 14, lastY);
+            
+            const totalTableBody = [];
+            const totals = {};
+            let totalPower = 0;
+             projectItems.forEach(item => {
+                item.materials.forEach(mat => {
+                    const key = mat.title;
+                    if (!totals[key]) totals[key] = { value: 0, unit: mat.unit, linearMeters: 0 };
+                    totals[key].value += mat.value;
+                    if (mat.linearMeters) totals[key].linearMeters += mat.linearMeters;
+                });
+                totalPower += item.power.value;
+            });
+            for (const key in totals) {
+                 const total = totals[key];
+                 let unitText = total.unit;
+                 if (key === 'Fita de LED') unitText += ` (${total.linearMeters.toFixed(2)}m)`;
+                 totalTableBody.push([key, Math.ceil(total.value), unitText, total.value.toFixed(2)]);
             }
-            
-            const tableBody = data.materials.map(item => {
-                let unitText = item.unit;
-                if (item.linearMeters !== undefined) {
-                    unitText += ` (${item.linearMeters.toFixed(2)}m)`;
-                }
-                 return [
-                    item.title,
-                    Math.ceil(item.value),
-                    unitText,
-                    item.value.toFixed(2)
-                ];
-            });
-            
-            doc.setFontSize(12);
-            doc.setTextColor(0);
-            doc.text("Quantitativos de Materiais", 14, lastY);
+            totalTableBody.push(["Fonte (+20%)", `${Math.ceil(totalPower)} W`, `Potência Total`, totalPower.toFixed(2)]);
+
             doc.autoTable({
                 startY: lastY + 3,
                 head: [['Material', 'Qtd. (Arred.)', 'Unidade', 'Valor Exato']],
-                body: tableBody,
+                body: totalTableBody,
                 theme: 'grid'
-            });
-            lastY = doc.autoTable.previous.finalY;
-
-            doc.text("Fonte de Alimentação Recomendada", 14, lastY + 10);
-            doc.autoTable({
-                startY: lastY + 13,
-                body: [
-                    [`Potência Mínima (+20%): ${data.power.rounded} W (Valor exato: ${data.power.value.toFixed(2)} W)`]
-                ]
             });
 
             const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
-            doc.setFontSize(10);
-            doc.setTextColor(100);
-            doc.text("REPRESENTANTE COMERCIAL: Marcio Marques - (81) 9.9464-5392", 14, pageHeight - 10);
+            doc.setFontSize(10); doc.setTextColor(100);
+            const pageCount = doc.internal.getNumberOfPages();
+            for(let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.text("REPRESENTANTE COMERCIAL: Marcio Marques - (81) 9.9464-5392", 14, pageHeight - 10);
+            }
 
-            doc.save(`orcamento-lona-${new Date().getTime()}.pdf`);
+            doc.save(`projeto-lona-${new Date().getTime()}.pdf`);
         }
         
         // --- Event Listeners ---
         const allInputs = [comprimentoInput, alturaInput, diametroInput, eixoMaiorInput, eixoMenorInput, customAreaInput, potenciaFitaInput, espacamentoFitaInput, profileTypeSelect];
         allInputs.forEach(input => input.addEventListener('input', calculateMaterials));
         shapeRadios.forEach(radio => radio.addEventListener('change', handleShapeChange));
-        downloadPdfBtn.addEventListener('click', downloadPDF);
+        downloadPdfBtn.addEventListener('click', downloadProjectPDF);
+        addToProjectBtn.addEventListener('click', addCurrentItemToProject);
+        clearProjectBtn.addEventListener('click', clearProject);
         addSideBtn.addEventListener('click', addSideInput);
 
         // --- Initial Setup ---
